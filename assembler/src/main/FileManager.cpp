@@ -14,6 +14,7 @@ queue<vector<string>> FileManager :: tokenizeFile(string filePath){
     if (!file.is_open() || ! file.good()) {
         file.close();
         cerr << "Error: Could not open file " << filePath << endl;
+        cerr << "Make sure the file name is the relative path to the file from the programs folder" << endl;
         return queue<vector<string>>();
     }
 
