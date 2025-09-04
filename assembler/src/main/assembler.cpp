@@ -5,6 +5,7 @@
 #include <filesystem>
 
 #include "FileManager.h"
+#include "TokenProcessor.h"
 
 typedef unsigned char ubyte;
 
@@ -23,15 +24,13 @@ int main(int argc, char *argv[]) {
     // The first argument (argv[1]) should be the input file path
     filesystem :: path fileName = argv[1];
 
-    queue<vector<string>> tokens = FileManager :: tokenizeFile(folder / fileName);
-    vector<string> line;
-    while(!tokens.empty()){
-        line = tokens.front();
-        tokens.pop();
-        for(string token : line){
-            cout << token << ' ';
-        }
-        cout << endl;
+    queue<vector<string>> tokens = FileManager :: tokenizeFile(folder/fileName);
+
+    TokenProcessor processor = TokenProcessor();
+    pair<char*, size_t> result = processor.processTokens(tokens).toArray();
+    for(int i=0; i<result.second; i++){
+        cout << int(result.first[i]) << ' ';
     }
+    cout << endl;
     return 0;
 }

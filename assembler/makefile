@@ -12,11 +12,11 @@ INCLUDE = -I$(SRC_PATH)
 #source .cpp files
 SRC_PATH = src/main/
 MAIN = assembler
-SRCS_RAW_CPP = LOCFileManager.cpp
+SRCS_RAW_CPP = LOCFileManager.cpp LOCTokenProcessor.cpp LOCBitStream.cpp
 SRCS_CPP = $(SRCS_RAW_CPP:LOC%=$(SRC_PATH)%) #LOC -> path to source files
 
 #source .h files (same path)
-SRCS_RAW_H = LOCFileManager.h
+SRCS_RAW_H = LOCFileManager.h LOCTokenProcessor.h LOCBitStream.h
 SRCS_H = $(SRCS_RAW_H:LOC%=$(SRC_PATH)%) #LOC -> path to source files
 
 #object .o files
@@ -30,7 +30,7 @@ ALL: $(TARGET)
 
 #Rule to generate the main target from the .o files (depends on .h files to ensure it recompiles often enough)
 $(TARGET) : $(OBJS) $(ENTRY) $(SRCS_H)
-	@$(CXX) $(CXXFLAGS) $(CPPVERSION) -o $(TARGET) $(OBJS) $(ENTRY)
+	@$(CXX) $(CXXFLAGS) $(CPPVERSION) -o $(TARGET) $(OBJS) $(ENTRY) -I$(INCLUDE)
 	@echo "RECOMPILED"
 
 #rules for generating .o files
