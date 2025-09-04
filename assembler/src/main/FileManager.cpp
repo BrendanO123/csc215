@@ -6,7 +6,7 @@ bool FileManager :: writeOut(char* data, int size){
 }
 
 queue<vector<string>> FileManager :: tokenizeFile(string filePath){
-    regex tokenPattern = regex("[^\\s][a-zA-Z0-9-_.]+");
+    regex tokenPattern = regex("[a-zA-Z0-9_\\.][a-zA-Z0-9-_\\.]*");
     ifstream file; file.open(filePath.c_str(), ios::in);
     queue<vector<string>> lines = queue<vector<string>>();
 
@@ -24,6 +24,7 @@ queue<vector<string>> FileManager :: tokenizeFile(string filePath){
     vector<string> tokens = vector<string>();
     sregex_iterator end;
     while (getline(file, line)) {
+        if(!line.empty() && line.at(0) == '#'){continue;}
         for(auto iter = sregex_iterator(line.begin(), line.end(), tokenPattern); iter != end; iter++){
             if(!iter->str().empty()){
                 tokens.push_back(iter->str());
