@@ -33,6 +33,7 @@ queue<vector<string>> FileManager :: tokenizeFile(string filePath){
                 tokens.push_back(iter->str());
             }
         }
+        if(!tokens.empty() && !tokens.at(0).empty() && tokens.at(0).at(0) == '#'){continue;}
         if(!tokens.empty()){lines.emplace(tokens);}
         tokens = vector<string>();
     }
