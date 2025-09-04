@@ -9,7 +9,8 @@
 	"scripts": {
 		"build": "make ALL -s",
 		"format": "npx prettier . --write",
-		"assemble": "./assembler.out"
+		"assemble": "./assembler.out",
+		"clean": "make clean"
 	},
 	"keywords": [],
 	"author": "Brendan O'Reilly 1006609@apsva.us",

@@ -1,4 +1,7 @@
 #include "FileManager.h"
+
+#include "BitStream.h"
+
 using namespace std;
 
 bool FileManager :: writeOut(char* data, int size){
@@ -6,7 +9,7 @@ bool FileManager :: writeOut(char* data, int size){
 }
 
 queue<vector<string>> FileManager :: tokenizeFile(string filePath){
-    regex tokenPattern = regex("[a-zA-Z0-9_\\.][a-zA-Z0-9-_\\.]*");
+    regex pattern = regex("\\s");
     ifstream file; file.open(filePath.c_str(), ios::in);
     queue<vector<string>> lines = queue<vector<string>>();
 
@@ -22,10 +25,10 @@ queue<vector<string>> FileManager :: tokenizeFile(string filePath){
     string line;
     string token;
     vector<string> tokens = vector<string>();
-    sregex_iterator end;
+    sregex_token_iterator end;
     while (getline(file, line)) {
         if(!line.empty() && line.at(0) == '#'){continue;}
-        for(auto iter = sregex_iterator(line.begin(), line.end(), tokenPattern); iter != end; iter++){
+        for(auto iter = sregex_token_iterator(line.begin(), line.end(), pattern, -1); iter != end; iter++){
             if(!iter->str().empty()){
                 tokens.push_back(iter->str());
             }
