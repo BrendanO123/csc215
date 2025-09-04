@@ -30,6 +30,7 @@ class BitStream{
         int offset = 0;
 
         inline void handleEmptyByteTermination();
+
     public:
         BitStream(){}
         bool push(pushableBitSequence e);

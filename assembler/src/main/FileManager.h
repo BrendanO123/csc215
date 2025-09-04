@@ -1,12 +1,12 @@
 #pragma once
 
-#include <string>
+#include <queue>
 #include <vector>
+#include <string>
+#include <regex>
 #include <fstream>
 #include <sstream>
 #include <iostream>
-#include <regex>
-#include <queue>
 
 using namespace std;
 

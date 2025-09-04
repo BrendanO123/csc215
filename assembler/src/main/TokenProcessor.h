@@ -40,12 +40,17 @@ class TokenProcessor{
         }
 
         pair<string, pushableBitSequence> define(vector<string> tokens);
-        pair<string, pushableBitSequence> func(vector<string> tokens);
+        pair<string, pushableBitSequence> positionDef(vector<string> tokens);
 
     public:
         TokenProcessor();
         BitStream processTokens(queue<vector<string>> tokens);
 
-        static pair<string, pushableBitSequence> defineStatic(vector<string> tokens, TokenProcessor* obj){return obj->define(tokens);}
-        static pair<string, pushableBitSequence> funcStatic(vector<string> tokens, TokenProcessor* obj){return obj->func(tokens);}
+        static pair<string, pushableBitSequence> defineStatic(vector<string> tokens, TokenProcessor* obj){
+            return obj->define(tokens);
+        }
+
+        static pair<string, pushableBitSequence> positionDefStatic(vector<string> tokens, TokenProcessor* obj){
+            return obj->positionDef(tokens);
+        }
 };

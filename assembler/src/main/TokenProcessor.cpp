@@ -13,8 +13,10 @@ TokenProcessor :: TokenProcessor(){
     data = BitStream();
     definitionKeywords.emplace(".define", TokenProcessor ::  defineStatic);
     definitionKeywords.emplace(".DEFINE", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".func", TokenProcessor :: funcStatic);
-    definitionKeywords.emplace(".FUNC", TokenProcessor :: funcStatic);
+    definitionKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".pos", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".POS", TokenProcessor :: positionDefStatic);
 
     //TODO remove
     lookups.emplace("opperation", pushableBitSequence(2, 3));
@@ -51,22 +53,18 @@ bool TokenProcessor :: processLine(vector<string> tokens){
 
 BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
     vector<string> line;
-    vector<int> invalidLines = vector<int>();
-    int lineIndex = 0;
+    bool valid = true;
     while(tokens.size() > 0){
         line = tokens.front();
         tokens.pop();
-        if(!processLine(line)){invalidLines.push_back(lineIndex);};
-        lineIndex++;
+        if(!processLine(line)){
+            cerr << "Errors decected on line: ";
+            for(string token : line){cerr << token << ' ';}
+            cerr << endl;
+            valid = false;
+        };
     }
-    if(!invalidLines.empty()){
-        cerr << "Errors detected on lines: ";
-        for(int index : invalidLines){cerr << index << ' ';}
-        cerr << endl;
-
-        throw invalid_argument("Invalid program");
-    }
-    cout << "Program is valid" << endl;
+    if(valid){cout << "Program is valid" << endl;}
     return data;
 }
 
@@ -92,8 +90,8 @@ pair<string, pushableBitSequence> TokenProcessor :: define(vector<string> tokens
     return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));
 }
 
-pair<string, pushableBitSequence> TokenProcessor :: func(vector<string> tokens){
-    if(tokens.size()>=3){ // must have all the peices of the def
+pair<string, pushableBitSequence> TokenProcessor :: positionDef(vector<string> tokens){
+    if(tokens.size()>=2){ // must have all the peices of the def
         // must be a valid var name
         if(!regex_match(tokens.at(1), lookup_regex)){return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));}
         
