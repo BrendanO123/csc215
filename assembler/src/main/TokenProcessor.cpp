@@ -31,25 +31,6 @@ TokenProcessor :: TokenProcessor(){
     definitionKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
     InstructionLoader :: initializeLookups(lookups, suffixes);
-
-    //TODO:
-        // add README for assembler
-            // how the assembly language works
-                // no hoisting
-                // comments
-                // position definitions
-                // var definitions
-                // case sensitivity
-            // how the assembler works
-                // how to run
-                // npm and makefile scripts
-                // where to put program and where output will be
-                // how to use output
-            //dependencies
-                // how to install node and npm
-                // how to set up a .zshrc file with the correct node config
-        // add program from class to program folder and remove placeholder
-        // test compilation and loading to simulator and run program
 }
 
 bool TokenProcessor :: processLine(vector<string> tokens){
