@@ -11,7 +11,10 @@
 using namespace std;
 
 class FileManager{
+    private:
+        static filesystem :: path programFolder;
+        static filesystem :: path outputFolder;
     public:
-        static queue<vector<string>> tokenizeFile(string filePath);
-        static bool writeOut(char* data, int size);
+        static queue<vector<string>> tokenizeFile(string fileName);
+        static bool writeOut(char* data, size_t size, string fileName);
 };

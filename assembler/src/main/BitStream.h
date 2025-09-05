@@ -35,7 +35,7 @@ class BitStream{
         BitStream(){}
         bool push(pushableBitSequence e);
 
-        inline pair<char*, int> toArray(){
+        inline pair<char*, size_t> toArray(){
             char* arr = new char[bytes.size()];
             copy(begin(bytes), end(bytes), arr);
             return pair<char*, size_t>(arr, bytes.size());

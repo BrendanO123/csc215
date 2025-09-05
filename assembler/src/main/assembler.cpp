@@ -11,8 +11,6 @@ typedef unsigned char ubyte;
 
 using namespace std;
 
-const filesystem :: path folder = "programs";
-
 int main(int argc, char *argv[]) {
 
     // Check if a file path was provided as an argument
@@ -22,9 +20,9 @@ int main(int argc, char *argv[]) {
     }
 
     // The first argument (argv[1]) should be the input file path
-    filesystem :: path fileName = argv[1];
+    string fileName = argv[1];
 
-    queue<vector<string>> tokens = FileManager :: tokenizeFile(folder/fileName);
+    queue<vector<string>> tokens = FileManager :: tokenizeFile(fileName);
 
     TokenProcessor processor = TokenProcessor();
     pair<char*, size_t> result = processor.processTokens(tokens).toArray();
@@ -32,5 +30,7 @@ int main(int argc, char *argv[]) {
         cout << int((unsigned char)(result.first[i])) << ' ';
     }
     cout << endl;
+
+    FileManager :: writeOut(result.first, result.second, fileName);
     return 0;
 }

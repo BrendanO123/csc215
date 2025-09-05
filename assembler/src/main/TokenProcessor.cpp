@@ -33,7 +33,6 @@ TokenProcessor :: TokenProcessor(){
     InstructionLoader :: initializeLookups(lookups, suffixes);
 
     //TODO:
-        // add output logic to make bin file loadable into simulator and .txt file with the octal of each byte on one line each
         // add README for assembler
             // how the assembly language works
                 // no hoisting
