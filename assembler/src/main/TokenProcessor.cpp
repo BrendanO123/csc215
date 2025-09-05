@@ -18,14 +18,75 @@ TokenProcessor :: TokenProcessor(){
     definitionKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
     definitionKeywords.emplace(".POS", TokenProcessor :: positionDefStatic);
 
-    //TODO remove
+    //TODO clean
+    lookups.emplace("true", pushableBitSequence(1, 1));
+    lookups.emplace("TRUE", pushableBitSequence(1, 1));
+    lookups.emplace("false", pushableBitSequence(1, 0));
+    lookups.emplace("FALSE", pushableBitSequence(1, 0));
+
+    lookups.emplace("bc", pushableBitSequence(2, 0));
+    lookups.emplace("BC", pushableBitSequence(2, 0));
+    lookups.emplace("rp_bc", pushableBitSequence(2, 0));
+    lookups.emplace("rp_BC", pushableBitSequence(2, 0));
+    lookups.emplace("RP_bc", pushableBitSequence(2, 0));
+    lookups.emplace("RP_BC", pushableBitSequence(2, 0));
+
+    lookups.emplace("de", pushableBitSequence(2, 1));
+    lookups.emplace("DE", pushableBitSequence(2, 1));
+    lookups.emplace("rp_de", pushableBitSequence(2, 1));
+    lookups.emplace("rp_DE", pushableBitSequence(2, 1));
+    lookups.emplace("RP_de", pushableBitSequence(2, 1));
+    lookups.emplace("RP_DE", pushableBitSequence(2, 1));
+
+    lookups.emplace("hl", pushableBitSequence(2, 2));
+    lookups.emplace("HL", pushableBitSequence(2, 2));
+    lookups.emplace("rp_hl", pushableBitSequence(2, 2));
+    lookups.emplace("rp_HL", pushableBitSequence(2, 2));
+    lookups.emplace("RP_hl", pushableBitSequence(2, 2));
+    lookups.emplace("RP_HL", pushableBitSequence(2, 2));
+
+    lookups.emplace("fa", pushableBitSequence(2, 3));
+    lookups.emplace("FA", pushableBitSequence(2, 3));
+    lookups.emplace("rp_fa", pushableBitSequence(2, 3));
+    lookups.emplace("rp_FA", pushableBitSequence(2, 3));
+    lookups.emplace("RP_fa", pushableBitSequence(2, 3));
+    lookups.emplace("RP_FA", pushableBitSequence(2, 3));
+    lookups.emplace("FlagsA", pushableBitSequence(2, 3));
+    lookups.emplace("rp_FlagsA", pushableBitSequence(2, 3));
+    lookups.emplace("RP_FlagsA", pushableBitSequence(2, 3));
+
+
+
     lookups.emplace("opperation", pushableBitSequence(2, 3));
     lookups.emplace("OPPERATION", pushableBitSequence(2, 3));
     lookups.emplace("load", pushableBitSequence(8, 5));
     lookups.emplace("LOAD", pushableBitSequence(8, 5));
+
+    //TODO:
+        // add opcode file instruction loader thingy
+        // add instructions to the opcodes file
+        // add output logic to make bin file loadable into simulator and .txt file with the octal of each byte on one line each
+        // add README for assembler
+            // how the assembly language works
+                // no hoisting
+                // comments
+                // position definitions
+                // var definitions
+                // case sensitivity
+            // how the assembler works
+                // how to run
+                // npm and makefile scripts
+                // where to put program and where output will be
+                // how to use output
+            //dependencies
+                // how to install node and npm
+                // how to set up a .zshrc file with the correct node config
+        // add program from class to program folder and remove placeholder
+        // test compilation and loading to simulator and run program
 }
 
 bool TokenProcessor :: processLine(vector<string> tokens){
+    pushableBitSequence* footer = nullptr;
     for(string token : tokens){
         if(regex_match(token, RAM_regex)){
             data.push(pushableBitSequence(8, parseInt(token), true));
@@ -36,6 +97,9 @@ bool TokenProcessor :: processLine(vector<string> tokens){
         else if(regex_match(token, lookup_regex)){
             if(lookups.find(token) == lookups.end()){return false;}
             data.push(lookups.at(token));
+            if(suffixes.find(token) != suffixes.end() && footer == nullptr){
+                footer = &suffixes.at(token);
+            }
         }
         else if (regex_match(token, sudoOp_regex)){
             if(definitionKeywords.find(token) == definitionKeywords.end()){return false;}
@@ -47,6 +111,7 @@ bool TokenProcessor :: processLine(vector<string> tokens){
         }
         else{return false;}
     }
+    if(footer != nullptr){data.push(*footer);}
     data.fillByte();
     return true;
 }

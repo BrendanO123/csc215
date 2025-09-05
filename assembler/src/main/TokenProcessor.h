@@ -21,6 +21,7 @@ class TokenProcessor{
 
         BitStream data;
         unordered_map<string, pushableBitSequence> lookups = unordered_map<string, pushableBitSequence>();
+        unordered_map<string, pushableBitSequence> suffixes = unordered_map<string, pushableBitSequence>();
         unordered_map<string, function<pair<string, pushableBitSequence>(vector<string>, TokenProcessor*)>> definitionKeywords =
             unordered_map<string, function<pair<string, pushableBitSequence>(vector<string>, TokenProcessor*)>>(); 
 
@@ -35,8 +36,27 @@ class TokenProcessor{
         }
         inline unsigned char parseReg(string reg){
             char c = reg.at(reg.length()-1);
-            c = tolower(c);
-            return (unsigned char)(c - 'a');
+            c = toupper(c);
+            switch(c){
+                case 'B':
+                    return 0;
+                case 'C':
+                    return 1;
+                case 'D':
+                    return 2;
+                case 'E':
+                    return 3;
+                case 'H':
+                    return 4;
+                case 'L':
+                    return 5;
+                case 'M':
+                    return 6;
+                case 'A':
+                    return 7;
+                default:
+                    return 0;
+            }
         }
 
         pair<string, pushableBitSequence> define(vector<string> tokens);
