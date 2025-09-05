@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     TokenProcessor processor = TokenProcessor();
     pair<char*, size_t> result = processor.processTokens(tokens).toArray();
     for(int i=0; i<result.second; i++){
-        cout << int(result.first[i]) << ' ';
+        cout << int((unsigned char)(result.first[i])) << ' ';
     }
     cout << endl;
     return 0;

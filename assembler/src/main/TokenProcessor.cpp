@@ -1,6 +1,8 @@
+#include "TokenProcessor.h"
+
 #include <iostream>
 
-#include "TokenProcessor.h"
+#include "InstructionLoader.h"
 
 using namespace std;
 
@@ -13,58 +15,24 @@ TokenProcessor :: TokenProcessor(){
     data = BitStream();
     definitionKeywords.emplace(".define", TokenProcessor ::  defineStatic);
     definitionKeywords.emplace(".DEFINE", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".def", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".var", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".VAR", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".variable", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".VARIABLE", TokenProcessor ::  defineStatic);
+
     definitionKeywords.emplace(".pos", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
     definitionKeywords.emplace(".POS", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".func", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".FUNC", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".function", TokenProcessor :: positionDefStatic);
+    definitionKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
-    //TODO clean
-    lookups.emplace("true", pushableBitSequence(1, 1));
-    lookups.emplace("TRUE", pushableBitSequence(1, 1));
-    lookups.emplace("false", pushableBitSequence(1, 0));
-    lookups.emplace("FALSE", pushableBitSequence(1, 0));
-
-    lookups.emplace("bc", pushableBitSequence(2, 0));
-    lookups.emplace("BC", pushableBitSequence(2, 0));
-    lookups.emplace("rp_bc", pushableBitSequence(2, 0));
-    lookups.emplace("rp_BC", pushableBitSequence(2, 0));
-    lookups.emplace("RP_bc", pushableBitSequence(2, 0));
-    lookups.emplace("RP_BC", pushableBitSequence(2, 0));
-
-    lookups.emplace("de", pushableBitSequence(2, 1));
-    lookups.emplace("DE", pushableBitSequence(2, 1));
-    lookups.emplace("rp_de", pushableBitSequence(2, 1));
-    lookups.emplace("rp_DE", pushableBitSequence(2, 1));
-    lookups.emplace("RP_de", pushableBitSequence(2, 1));
-    lookups.emplace("RP_DE", pushableBitSequence(2, 1));
-
-    lookups.emplace("hl", pushableBitSequence(2, 2));
-    lookups.emplace("HL", pushableBitSequence(2, 2));
-    lookups.emplace("rp_hl", pushableBitSequence(2, 2));
-    lookups.emplace("rp_HL", pushableBitSequence(2, 2));
-    lookups.emplace("RP_hl", pushableBitSequence(2, 2));
-    lookups.emplace("RP_HL", pushableBitSequence(2, 2));
-
-    lookups.emplace("fa", pushableBitSequence(2, 3));
-    lookups.emplace("FA", pushableBitSequence(2, 3));
-    lookups.emplace("rp_fa", pushableBitSequence(2, 3));
-    lookups.emplace("rp_FA", pushableBitSequence(2, 3));
-    lookups.emplace("RP_fa", pushableBitSequence(2, 3));
-    lookups.emplace("RP_FA", pushableBitSequence(2, 3));
-    lookups.emplace("FlagsA", pushableBitSequence(2, 3));
-    lookups.emplace("rp_FlagsA", pushableBitSequence(2, 3));
-    lookups.emplace("RP_FlagsA", pushableBitSequence(2, 3));
-
-
-
-    lookups.emplace("opperation", pushableBitSequence(2, 3));
-    lookups.emplace("OPPERATION", pushableBitSequence(2, 3));
-    lookups.emplace("load", pushableBitSequence(8, 5));
-    lookups.emplace("LOAD", pushableBitSequence(8, 5));
+    InstructionLoader :: initializeLookups(lookups, suffixes);
 
     //TODO:
-        // add opcode file instruction loader thingy
-        // add instructions to the opcodes file
         // add output logic to make bin file loadable into simulator and .txt file with the octal of each byte on one line each
         // add README for assembler
             // how the assembly language works

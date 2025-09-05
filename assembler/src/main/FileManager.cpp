@@ -27,13 +27,13 @@ queue<vector<string>> FileManager :: tokenizeFile(string filePath){
     vector<string> tokens = vector<string>();
     sregex_token_iterator end;
     while (getline(file, line)) {
-        if(!line.empty() && line.at(0) == '#'){continue;}
+        if(line.empty() || line.at(0) == '#'){tokens = vector<string>(); continue;}
         for(auto iter = sregex_token_iterator(line.begin(), line.end(), pattern, -1); iter != end; iter++){
             if(!iter->str().empty()){
                 tokens.push_back(iter->str());
             }
         }
-        if(!tokens.empty() && !tokens.at(0).empty() && tokens.at(0).at(0) == '#'){continue;}
+        if(tokens.empty() || (!tokens.at(0).empty() && tokens.at(0).at(0) == '#')){tokens = vector<string>(); continue;}
         if(!tokens.empty()){lines.emplace(tokens);}
         tokens = vector<string>();
     }
