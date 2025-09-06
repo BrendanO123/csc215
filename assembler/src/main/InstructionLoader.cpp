@@ -11,8 +11,10 @@ void InstructionLoader :: initializeLookups(
     lookups.clear();
     lookups.emplace("true", pushableBitSequence(1, 1));
     lookups.emplace("TRUE", pushableBitSequence(1, 1));
+    lookups.emplace("T", pushableBitSequence(1, 1));
     lookups.emplace("false", pushableBitSequence(1, 0));
     lookups.emplace("FALSE", pushableBitSequence(1, 0));
+    lookups.emplace("F", pushableBitSequence(1, 0));
 
     lookups.emplace("bc", pushableBitSequence(2, 0));
     lookups.emplace("BC", pushableBitSequence(2, 0));

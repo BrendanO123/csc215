@@ -7,7 +7,7 @@
 using namespace std;
 
 const regex TokenProcessor :: RAM_regex = regex("[0-9]+");
-const regex TokenProcessor :: register_regex = regex("[rR]?[a-hA-H]");
+const regex TokenProcessor :: register_regex = regex("[rR]?[a-eA-EhlmHLM]");
 const regex TokenProcessor :: lookup_regex = regex("[a-zA-Z_][a-zA-Z0-9-_\\.]*");
 const regex TokenProcessor :: sudoOp_regex = regex("\\.[a-zA-Z-_]+");
 
