@@ -1,3 +1,6 @@
+# What is This
+This is an assembler for the Altair8800 that I made during my time in the DE CSC215 class at NOVA. It handles the complete instruction set of the Altair8800, as well as comments and custom assembler level pseudo-instructions. The asembler takes in the program as a text file and returns both a `.bin` binary file, which can be loaded into the Altair8800 simulator, and a `.txt` file containing the octal version of the machine code for loading into the physical computer.
+
 ## How the Assembly Language Works
 The assembler breaks up your assembly code into each line, and each line must result in either no machine code added or a valid instruction that fits evenly into a number of bytes. To do this, the assembler breaks each line down again into tokens separated by whitespace. 
 
@@ -36,14 +39,53 @@ The assembler breaks up your assembly code into each line, and each line must re
 
 ## Dependencies
 ### Node and NPM
+This project has Node infrastructure for a few simple scripts and managing Prettier. These are mainly development dependencies, but are nice to have in production as well. To check if you have node installed, run `node -v` in the command line. If you still need to install node run the following in the command line:
+```bash
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 22
+
+# Verify the Node.js version:
+node -v # Should print "v22.19.0".
+
+# Verify npm version:
+npm -v # Should print "10.9.3".
+```
 #### Node and `.zshrc` Files
+To keep Node working when you restart Terminal, you need to add the following to your `.zshrc` file or equivalent:
+```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+```
+
+#### Making a `.zshrc` File
+If you don't have a `.zshrc` file, you can run the following script to create one with these lines loaded:
+```bash
+cd ~
+touch .zshrc
+echo 'export NVM_DIR="$HOME/.nvm"\n[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm' > .zshrc
+```
+or the one-line version:
+```bash
+cd ~ && touch .zshrc && echo 'export NVM_DIR="$HOME/.nvm"\n[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm' > .zshrc
+```
+
+These files contain bash or z-shell scripts, which are run every time a new terminal window is loaded. These can be used to set environment variables for your terminal, and must be in your users folder at `Users/<your_user_id>`, such as `Users/1006609`. To see these files in explorer, you must toggle on hidden files view with Command + Shift + Period.
+
+### Prettier
+This code has Prettier architecture for using Prettier as a linter. This is leftover from when the instruction set was to be in `.json` files, and is not very significant anymore as the linter cannot work with C++. If you already have the linter installed you can run the formatter with `npm run format`, but I would not recommend installing it for this project if you do not already have it.
 
 ## How to use the Assembler
 ### Input and Output
+All assembly programs should be placed in the `programs` folder within this directory as text files, such as `.txt` files. Once the program runs, the two output files will be generated in the `outputs` folder within this directory. One will be a `.txt` file, which will contain the octal machine code, ready to be used with the physical computer. This machine code should be loaded in starting at memory address zero. The other output file will be a `.bin` file, which can be directly loaded into the simulator by turning on the computer, selecting `Load Binary File`, and selecting the outputted `.bin` file. This will allow the simulator to directly load in your assembled program without having to manually enter it.
+
+### Building the Program
+In order to run the program, you must first build it with the `makefile` and Node `package.json` scripts. Simply run `npm run build`, `make`, or `make ALL` to generate the final executable called `.assembler.out`. There will also be build artifacts in the `Dependencies/bin` folder including object (`.o`) files and dependency (`.d`) files. These can be cleaned up by running `npm run clean` or `make clean`.
 
 ### Running the Program
-
-### Scripts
-
-### How to use the Output
+To run the program, run either `npm run assemble -- <file_name>` or `./assembler.out <file_name>`, where `<file_name>` is the name of the text file containing your program, which should be placed in the `programs` folder. The program will output the above-mentioned output files if the program is valid or print out the lines that caused errors without making the files.

@@ -74,7 +74,7 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
             cerr << "Errors decected on line: ";
             for(string token : line){cerr << token << ' ';}
             cerr << endl;
-            valid = false;
+            throw invalid_argument("Program is Invalid");
         };
     }
     if(valid){cout << "Program is valid" << endl;}
