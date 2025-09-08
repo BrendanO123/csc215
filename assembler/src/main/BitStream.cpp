@@ -11,8 +11,9 @@ bool BitStream :: push(pushableBitSequence e){
     }
 
     offset += e.length;
-    if(offset < 8){return false;}
+    if(offset < 8 && !e.terminateWithEmptyByte){return false;}
     index++; offset &= 0b111;
+    if(e.terminateWithEmptyByte){handleEmptyByteTermination();}
     return true;
 }
 

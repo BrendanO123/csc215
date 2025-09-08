@@ -31,11 +31,26 @@ TokenProcessor :: TokenProcessor(){
     definitionKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
     InstructionLoader :: initializeLookups(lookups, suffixes);
+
+    //TODO:
+        // better immediates
+        // better memory addresses (65k?)
+        // relative jump sudo op: 
+            // .rel_jump <jump_instruction> <location> <offset>
+            // e.g.:
+                // .define start
+                // .rel_jump CC start -3
+        // hoisting = parser + linker
+            // keep track of unresolved symbols as you go but infer length of sequence
+            // once done, re-eval symbols and report undefined symbols
 }
 
 bool TokenProcessor :: processLine(vector<string> tokens){
     pushableBitSequence* footer = nullptr;
     for(string token : tokens){
+        if(footer != nullptr){
+            if(footer -> length + data.getOffset() == 8){data.push(*footer); footer = nullptr;}
+        }
         if(regex_match(token, RAM_regex)){
             data.push(pushableBitSequence(8, parseInt(token), true));
         }

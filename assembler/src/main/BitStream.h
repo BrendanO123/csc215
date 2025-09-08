@@ -45,6 +45,7 @@ class BitStream{
             if(offset != 0){return -1;}
             return index;
         }
+        inline int getOffset(){return offset;}
 
         inline bool fillByte(){
             if(offset == 0){return false;}
