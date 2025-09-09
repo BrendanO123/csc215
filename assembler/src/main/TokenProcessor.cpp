@@ -105,7 +105,7 @@ bool TokenProcessor :: processLine(vector<string> tokens){
                     }
                 }
                 catch(invalid_argument exp){
-                    cerr << "non-numerical token parsing attempted" << endl;
+                    cerr << "non-numerical token parsing attempted: " << exp.what() << endl;
                 }
             }
             if(regex_match(tokens.at(tokenIndex), variable_regex)){
@@ -157,7 +157,13 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
             continue;
         }
         else{
-            data.set(e.index, e.offset, e.element.intInitializer(variables.at(e.varName).data));
+            data.set(
+                e.index, 
+                e.offset, 
+                e.element.intInitializer(
+                    variables.at(e.varName).data + (e.memoryAddressOffset.has_value() ? e.memoryAddressOffset.value() : 0)
+                )
+            );
             staleCounter = 0;
         }
     }
@@ -226,21 +232,40 @@ bool TokenProcessor :: relJump(vector<string> tokens){
     auto format = instructionFormats.at(tokens.at(1));
     if(format.at(1) != pushableBitSequenceTemplates :: BYTE_PAIR){return false;}
     if(!regex_match(tokens.at(3), offset_regex)){return false;}
+    int offset = parseInt(tokens.at(3));
 
     // get memory address and offset and push full BytePair
     if(variables.find(tokens.at(2)) != variables.end()){
         data.push(
-            pushableBitSequenceTemplates :: getIntBP(variables.at(tokens.at(2)).data + parseInt(tokens.at(3)))
+            pushableBitSequenceTemplates :: getIntBP(variables.at(tokens.at(2)).data + offset)
         );
         return true;
     }
     pushableBitSequenceTemplate BP = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
         [pushableBitSequenceTemplates :: BYTE_PAIR];
-    if(!BP.isType(tokens.at(2))){return false;}
-    data.push(
-        pushableBitSequenceTemplates :: getIntBP(parseInt(tokens.at(2).substr(1)) + parseInt(tokens.at(3)))
-    );
-    return true;
+    if(BP.isType(tokens.at(2))){
+        try{
+            data.push(
+                pushableBitSequenceTemplates :: getIntBP(parseInt(tokens.at(2).substr(1)) + offset)
+            );
+            return true;
+        }
+        catch(invalid_argument e){
+            cerr << "non-numerical token parsing attempted: " << e.what() << endl;
+        }
+    }
+    if(regex_match(tokens.at(2), variable_regex)){
+        missingVars.emplace(
+            data.getPosition(),
+            BP,
+            tokens.at(2),
+            offset
+        );
+        data.push(BP.intInitializer(0));
+        return true;
+    }
+    data.push(BP.intInitializer(0));
+    return false;
 }
 
 bool TokenProcessor :: initSP(){

@@ -62,7 +62,7 @@ namespace pushableBitSequenceTemplates{
     pushableBitSequence getStringBP(string token);
 
     const pushableBitSequenceTemplate pushableBitSequenceTemplates[] = {
-        pushableBitSequenceTemplate(getIntBool, getStringBool, regex("[tfTF][a-zA-Z]*")),
+        pushableBitSequenceTemplate(getIntBool, getStringBool, regex("[tfTF]")),
         pushableBitSequenceTemplate(getIntRP, getStringRP, regex("$a")),
         pushableBitSequenceTemplate(getIntReg, getStringReg, regex("[rR]?[a-eA-EhHlLmM]")),
         pushableBitSequenceTemplate(getIntByte, getStringByte, regex("-?[0-9]+")),

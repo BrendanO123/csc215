@@ -16,11 +16,17 @@ struct missingVar{
     int offset;
     pushableBitSequenceTemplate element;
     string varName;
+    optional<int> memoryAddressOffset;
 
     missingVar(pair<int,int> position, pushableBitSequenceTemplate e, string name) : 
         index(position.first), offset(position.second), element(e), varName(name){}
     missingVar(int index, int offset, pushableBitSequenceTemplate e, string name) :
         index(index), offset(offset), element(e), varName(name){}
+
+    missingVar(pair<int,int> position, pushableBitSequenceTemplate e, string name, int memAddressOffset) : 
+        index(position.first), offset(position.second), element(e), varName(name){memoryAddressOffset.emplace(memAddressOffset);}
+    missingVar(int index, int offset, pushableBitSequenceTemplate e, string name, int memAddressOffset) :
+        index(index), offset(offset), element(e), varName(name){memoryAddressOffset.emplace(memAddressOffset);}
 };
 class TokenProcessor{
     private:
