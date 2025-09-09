@@ -14,8 +14,8 @@ bool BitStream :: push(pushableBitSequence e){
     offset += e.length;
     if(offset < 8){return false;}
     index++; offset &= 0b111;
-    optional<Byte> second = e.second;
-    if(second.has_value()){return push(second.value());}
+    optional<unsigned char> second = e.second;
+    if(second.has_value()){return push(pushableBitSequence(8, second.value()));}
     return true;
 }
 bool BitStream :: set(int i, int off, pushableBitSequence e){
@@ -23,8 +23,8 @@ bool BitStream :: set(int i, int off, pushableBitSequence e){
     bytes.at(i) &= ~(((1<<e.length)-1)<<(8 - offset - e.length));
     bytes.at(i) |= e.data << (8 - offset - e.length);
     
-    optional<Byte> second = e.second;
-    if(second.has_value()){set(i++, off, second.value());}
+    optional<unsigned char> second = e.second;
+    if(second.has_value()){set(i++, off, pushableBitSequence(8, second.value()));}
     return true;
 }
 

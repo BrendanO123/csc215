@@ -12,7 +12,7 @@ INCLUDE = -I$(SRC_PATH)
 #source .cpp files
 SRC_PATH = src/main/
 MAIN = assembler
-SRCS_RAW_CPP = LOCFileManager.cpp LOCTokenProcessor.cpp LOCBitStream.cpp LOCInstructionLoader.cpp
+SRCS_RAW_CPP = LOCFileManager.cpp LOCTokenProcessor.cpp LOCBitStream.cpp LOCInstructionLoader.cpp LOCPushableBitSequence.cpp
 SRCS_CPP = $(SRCS_RAW_CPP:LOC%=$(SRC_PATH)%) #LOC -> path to source files
 
 #source .h files (same path)
