@@ -38,7 +38,7 @@ pushableBitSequence pushableBitSequenceTemplates :: getStringReg(string token){
 }
 pushableBitSequence pushableBitSequenceTemplates :: getStringByte(string token){return pushableBitSequence(8, (unsigned char)stoi(token, nullptr));}
 pushableBitSequence pushableBitSequenceTemplates :: getStringBP(string token){
-    int value = stoi(token, nullptr);
+    int value = stoi(token.substr(1), nullptr);
     auto e = pushableBitSequence(8, (unsigned char)value);
     e.second.emplace((unsigned char)(value>>8));
     return e;

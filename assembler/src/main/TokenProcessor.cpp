@@ -96,18 +96,31 @@ bool TokenProcessor :: processLine(vector<string> tokens){
             }
 
             auto e = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
-                [format.at(formatIndex)].stringInitializer(tokens.at(tokenIndex));
-            if(e.length > 0){data.push(e);}
-            else{
-                data.push(pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)].intInitializer(0));
-                if(regex_match(tokens.at(tokenIndex), variable_regex)){
-                    missingVars.emplace(
-                        data.getPosition(), 
-                        pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)], 
-                        tokens.at(tokenIndex)
-                    );
+                [format.at(formatIndex)];
+            if(e.isType(tokens.at(tokenIndex))){
+                try{
+                    auto pushable = e.stringInitializer(tokens.at(tokenIndex));
+                    if(pushable.length > 0){
+                        data.push(pushable); 
+                        tokenIndex++; 
+                        continue;
+                    }
                 }
-                else{return false;}
+                catch(invalid_argument exp){
+                    cerr << "non-numerical token parsing attempted" << endl;
+                }
+            }
+            if(regex_match(tokens.at(tokenIndex), variable_regex)){
+                missingVars.emplace(
+                    data.getPosition(), 
+                    e, 
+                    tokens.at(tokenIndex)
+                );
+                data.push(e.intInitializer(0));
+            }
+            else{
+                data.push(e.intInitializer(0));
+                return false;
             }
             tokenIndex++;
         }
@@ -137,19 +150,17 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
     // link
     valid = true;
     int staleCounter = 0;
-    while(staleCounter < missingVars.size()){
-        for(int i = missingVars.size(); i >= 0; i--){
-            auto e = missingVars.front();
-            missingVars.pop();
-            if(variables.find(e.varName) == variables.end()){
-                missingVars.push(e); 
-                staleCounter++;
-                continue;
-            }
-            else{
-                data.set(e.index, e.offset, e.element.intInitializer(variables.at(e.varName).data));
-                staleCounter = 0;
-            }
+    while(!missingVars.empty() && staleCounter < missingVars.size()){
+        auto e = missingVars.front();
+        missingVars.pop();
+        if(variables.find(e.varName) == variables.end()){
+            missingVars.push(e); 
+            staleCounter++;
+            continue;
+        }
+        else{
+            data.set(e.index, e.offset, e.element.intInitializer(variables.at(e.varName).data));
+            staleCounter = 0;
         }
     }
     if(missingVars.size()){
