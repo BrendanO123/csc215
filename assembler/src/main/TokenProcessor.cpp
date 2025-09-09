@@ -224,14 +224,19 @@ bool TokenProcessor :: relJump(vector<string> tokens){
     data.push(opCodPieces.at(0));
 
     auto format = instructionFormats.at(tokens.at(1));
-
     if(format.at(1) != pushableBitSequenceTemplates :: BYTE_PAIR){return false;}
+    if(!regex_match(tokens.at(3), offset_regex)){return false;}
 
     // get memory address and offset and push full BytePair
+    if(variables.find(tokens.at(2)) != variables.end()){
+        data.push(
+            pushableBitSequenceTemplates :: getIntBP(variables.at(tokens.at(2)).data + parseInt(tokens.at(3)))
+        );
+        return true;
+    }
     pushableBitSequenceTemplate BP = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
         [pushableBitSequenceTemplates :: BYTE_PAIR];
     if(!BP.isType(tokens.at(2))){return false;}
-    if(!regex_match(tokens.at(3), offset_regex)){return false;}
     data.push(
         pushableBitSequenceTemplates :: getIntBP(parseInt(tokens.at(2).substr(1)) + parseInt(tokens.at(3)))
     );
