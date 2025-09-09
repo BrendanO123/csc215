@@ -2,50 +2,45 @@
 
 using namespace std;
 
+const regex InstructionLoader :: opCode_regex = regex("[01]+");
 string InstructionLoader :: filePath = "opcodes.txt";
 
 void InstructionLoader :: initializeLookups(
-    unordered_map<string, pushableBitSequence>& lookups,
-    unordered_map<string, pushableBitSequence>& suffixes
+    unordered_map<string, vector<pushableBitSequence>>& opCodes,
+    unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>>& instructionFormats, 
+    unordered_map<string, pushableBitSequence>& variables
 ){
-    lookups.clear();
-    lookups.emplace("true", pushableBitSequence(1, 1));
-    lookups.emplace("TRUE", pushableBitSequence(1, 1));
-    lookups.emplace("T", pushableBitSequence(1, 1));
-    lookups.emplace("false", pushableBitSequence(1, 0));
-    lookups.emplace("FALSE", pushableBitSequence(1, 0));
-    lookups.emplace("F", pushableBitSequence(1, 0));
+    variables.clear();
+    variables.emplace("bc", pushableBitSequence(2, 0));
+    variables.emplace("BC", pushableBitSequence(2, 0));
+    variables.emplace("rp_bc", pushableBitSequence(2, 0));
+    variables.emplace("rp_BC", pushableBitSequence(2, 0));
+    variables.emplace("RP_bc", pushableBitSequence(2, 0));
+    variables.emplace("RP_BC", pushableBitSequence(2, 0));
 
-    lookups.emplace("bc", pushableBitSequence(2, 0));
-    lookups.emplace("BC", pushableBitSequence(2, 0));
-    lookups.emplace("rp_bc", pushableBitSequence(2, 0));
-    lookups.emplace("rp_BC", pushableBitSequence(2, 0));
-    lookups.emplace("RP_bc", pushableBitSequence(2, 0));
-    lookups.emplace("RP_BC", pushableBitSequence(2, 0));
+    variables.emplace("de", pushableBitSequence(2, 1));
+    variables.emplace("DE", pushableBitSequence(2, 1));
+    variables.emplace("rp_de", pushableBitSequence(2, 1));
+    variables.emplace("rp_DE", pushableBitSequence(2, 1));
+    variables.emplace("RP_de", pushableBitSequence(2, 1));
+    variables.emplace("RP_DE", pushableBitSequence(2, 1));
 
-    lookups.emplace("de", pushableBitSequence(2, 1));
-    lookups.emplace("DE", pushableBitSequence(2, 1));
-    lookups.emplace("rp_de", pushableBitSequence(2, 1));
-    lookups.emplace("rp_DE", pushableBitSequence(2, 1));
-    lookups.emplace("RP_de", pushableBitSequence(2, 1));
-    lookups.emplace("RP_DE", pushableBitSequence(2, 1));
+    variables.emplace("hl", pushableBitSequence(2, 2));
+    variables.emplace("HL", pushableBitSequence(2, 2));
+    variables.emplace("rp_hl", pushableBitSequence(2, 2));
+    variables.emplace("rp_HL", pushableBitSequence(2, 2));
+    variables.emplace("RP_hl", pushableBitSequence(2, 2));
+    variables.emplace("RP_HL", pushableBitSequence(2, 2));
 
-    lookups.emplace("hl", pushableBitSequence(2, 2));
-    lookups.emplace("HL", pushableBitSequence(2, 2));
-    lookups.emplace("rp_hl", pushableBitSequence(2, 2));
-    lookups.emplace("rp_HL", pushableBitSequence(2, 2));
-    lookups.emplace("RP_hl", pushableBitSequence(2, 2));
-    lookups.emplace("RP_HL", pushableBitSequence(2, 2));
-
-    lookups.emplace("fa", pushableBitSequence(2, 3));
-    lookups.emplace("FA", pushableBitSequence(2, 3));
-    lookups.emplace("rp_fa", pushableBitSequence(2, 3));
-    lookups.emplace("rp_FA", pushableBitSequence(2, 3));
-    lookups.emplace("RP_fa", pushableBitSequence(2, 3));
-    lookups.emplace("RP_FA", pushableBitSequence(2, 3));
-    lookups.emplace("FlagsA", pushableBitSequence(2, 3));
-    lookups.emplace("rp_FlagsA", pushableBitSequence(2, 3));
-    lookups.emplace("RP_FlagsA", pushableBitSequence(2, 3));
+    variables.emplace("fa", pushableBitSequence(2, 3));
+    variables.emplace("FA", pushableBitSequence(2, 3));
+    variables.emplace("rp_fa", pushableBitSequence(2, 3));
+    variables.emplace("rp_FA", pushableBitSequence(2, 3));
+    variables.emplace("RP_fa", pushableBitSequence(2, 3));
+    variables.emplace("RP_FA", pushableBitSequence(2, 3));
+    variables.emplace("FlagsA", pushableBitSequence(2, 3));
+    variables.emplace("rp_FlagsA", pushableBitSequence(2, 3));
+    variables.emplace("RP_FlagsA", pushableBitSequence(2, 3));
 
     ifstream file; file.open(filePath.c_str(), ios::in);
 
@@ -61,8 +56,9 @@ void InstructionLoader :: initializeLookups(
 
     regex pattern = regex("\\s");
     sregex_token_iterator end;
-    vector<string> tokens = vector<string>();
-
+    auto tokens = vector<string>();
+    auto format = vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>();
+    auto opCodePieces = vector<pushableBitSequence>();
     while (getline(file, line)) {
         if(line.empty()){break;}
         for(auto iter = sregex_token_iterator(line.begin(), line.end(), pattern, -1); iter != end; iter++){
@@ -72,23 +68,27 @@ void InstructionLoader :: initializeLookups(
         }
         if(tokens.size()<2){tokens = vector<string>(); continue;}
 
-        string name = tokens.at(0); 
-        length = tokens.at(1).size();
-        data = stoi(tokens.at(1), nullptr, 2);
-        pushableBitSequence bitSequence = pushableBitSequence(length, data);
+        string name = tokens.at(0);
+        opCodePieces.push_back(OpCode(tokens.at(1).size(), stoi(tokens.at(1), nullptr, 2))); // add in initial opcode start
+        format.push_back(pushableBitSequenceTemplates :: OP_CODE);
 
-        lookups.emplace(name, bitSequence);
-        lookups.emplace(toLower(name), bitSequence);
-
-        if(tokens.size()>=3){
-            suffixLength = tokens.at(2).size();
-            suffixData = stoi(tokens.at(2), nullptr, 2);
-            pushableBitSequence footerBitSequence = pushableBitSequence(suffixLength, suffixData);
-
-            suffixes.emplace(name, footerBitSequence);
-            suffixes.emplace(toLower(name), footerBitSequence);
+        for(int i = 2; i < tokens.size(); i++){
+            if(regex_match(tokens.at(i), opCode_regex)){
+                opCodePieces.push_back(OpCode(tokens.at(i).size(), stoi(tokens.at(i), nullptr, 2)));
+                format.push_back(pushableBitSequenceTemplates :: OP_CODE);
+            }
+            else if(tokens.at(i) == "bool"){format.push_back(pushableBitSequenceTemplates :: BOOL);}
+            else if(tokens.at(i) == "rp"){format.push_back(pushableBitSequenceTemplates :: REGISTER_PAIR);}
+            else if(tokens.at(i) == "reg"){format.push_back(pushableBitSequenceTemplates :: REGISTER);}
+            else if(tokens.at(i) == "byte"){format.push_back(pushableBitSequenceTemplates :: BYTE);}
+            else if(tokens.at(i) == "ram"){format.push_back(pushableBitSequenceTemplates :: BYTE_PAIR);}
+            else{cerr << "Incorrect Token in OpCodes File: " << tokens.at(i);}
         }
+        opCodes.emplace(name, format);
+        
         tokens = vector<string>();
+        opCodePieces = vector<pushableBitSequence>();
+        format = vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>();
     }
     file.close();
 }

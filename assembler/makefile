@@ -16,7 +16,7 @@ SRCS_RAW_CPP = LOCFileManager.cpp LOCTokenProcessor.cpp LOCBitStream.cpp LOCInst
 SRCS_CPP = $(SRCS_RAW_CPP:LOC%=$(SRC_PATH)%) #LOC -> path to source files
 
 #source .h files (same path)
-SRCS_RAW_H = LOCFileManager.h LOCTokenProcessor.h LOCBitStream.h LOCInstructionLoader.h
+SRCS_RAW_H = LOCFileManager.h LOCTokenProcessor.h LOCBitStream.h LOCPushableBitSequence.h LOCInstructionLoader.h
 SRCS_H = $(SRCS_RAW_H:LOC%=$(SRC_PATH)%) #LOC -> path to source files
 
 #object .o files
