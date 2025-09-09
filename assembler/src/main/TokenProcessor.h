@@ -24,6 +24,8 @@ struct missingVar{
 };
 class TokenProcessor{
     private:
+        static const int estimatedRAMSize = 8192 - 1;
+        static const pair<pushableBitSequence, pushableBitSequence> SPI;
         static const regex variable_regex;
         static const regex sudoOp_regex;
         static const regex instruction_regex;
@@ -37,30 +39,24 @@ class TokenProcessor{
         unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>> instructionFormats = 
             unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>>();
 
-        unordered_map<string, function<pair<string, pushableBitSequence>(vector<string>, TokenProcessor*)>> definitionKeywords =
-            unordered_map<string, function<pair<string, pushableBitSequence>(vector<string>, TokenProcessor*)>>(); 
+        unordered_map<string, function<bool(vector<string>, TokenProcessor*)>> definitionKeywords =
+            unordered_map<string, function<bool(vector<string>, TokenProcessor*)>>(); 
 
         bool processLine(vector<string> tokens);
 
-        pair<string, pushableBitSequence> define(vector<string> tokens);
-        pair<string, pushableBitSequence> positionDef(vector<string> tokens);
-        pair<string, pushableBitSequence> relJump(vector<string> tokens);
+        bool define(vector<string> tokens);
+        bool positionDef(vector<string> tokens);
+        bool relJump(vector<string> tokens);
+        bool initSP();
 
     public:
         TokenProcessor();
         BitStream processTokens(queue<vector<string>> tokens);
 
-        static pair<string, pushableBitSequence> defineStatic(vector<string> tokens, TokenProcessor* obj){
-            return obj->define(tokens);
-        }
-
-        static pair<string, pushableBitSequence> positionDefStatic(vector<string> tokens, TokenProcessor* obj){
-            return obj->positionDef(tokens);
-        }
-
-        static pair<string, pushableBitSequence> relJumpStatic(vector<string> tokens, TokenProcessor* obj){
-            return obj->relJump(tokens);
-        }
+        static bool defineStatic(vector<string> tokens, TokenProcessor* obj){return obj->define(tokens);}
+        static bool positionDefStatic(vector<string> tokens, TokenProcessor* obj){return obj->positionDef(tokens);}
+        static bool relJumpStatic(vector<string> tokens, TokenProcessor* obj){return obj->relJump(tokens);}
+        static bool initSPStatic(vector<string> tokens, TokenProcessor* obj){return obj->initSP();}
 
         inline int parseInt(string num){return stoi(num, nullptr);}
         unsigned char parseReg(string reg){

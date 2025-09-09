@@ -1,10 +1,11 @@
 # stack pointer starts at address 0 which is very problematic
 # because it causes the stack pointer to address bytes in memory which don't exist in the RAM 
 # this in turn causes RET functions to go to address 0 instead of back to the CALL
-# so the Stack Pointer needs to be manually set
-LXI HL r8191
-SPHL
+# so the Stack Pointer needs to be manually set, I added a psuedo op to do this automatically but the code boils down to
+# LXI HL r8191
+# SPHL
 
+.initSP
 MVI A 7
 MVI E 9
 CALL mult
