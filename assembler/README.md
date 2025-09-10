@@ -2,10 +2,7 @@
 This is an assembler for the Altair8800 that I made during my time in the DE CSC215 class at NOVA. It handles the complete instruction set of the Altair8800, as well as comments and custom assembler level pseudo-instructions. The assembler takes in the program as a text file and returns both a `.bin` binary file, which can be loaded into the Altair8800 simulator, and a `.txt` file containing the octal version of the machine code for loading into the physical computer.
 
 ## How the Assembly Language Works
-The assembler breaks up your assembly code into each line, and each line must result in either no machine code added (in the case of pseudo-instructions) or a valid instruction that fits evenly into a number of bytes. To do this, the assembler breaks each line down again into tokens separated by whitespace. 
-
-NO HOISTING ON RELATIVE JUMPS OR DEFINE STATEMENTS
-YOU CAN USE A VARIABLE BEFORE IT IS DEFINED BUT YOU CANNOT DEFINE A VARIABLE WITH AN UNDEFINED VARIABLE
+The assembler breaks up your assembly code into each line, and each line must result in either no machine code added (in the case of pseudo-instructions) or a valid instruction that fits evenly into a number of bytes. To do this, the assembler breaks each line down again into tokens separated by whitespace.
 
 ### Token Types
  - **Booleans and Register Pairs**:
