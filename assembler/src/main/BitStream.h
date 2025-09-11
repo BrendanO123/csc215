@@ -2,26 +2,11 @@
 
 #include <vector>
 #include <iostream>
+#include <optional>
+
+#include "PushableBitSequence.h"
 
 using namespace std;
-
-struct pushableBitSequence{
-    const unsigned char length;
-    const unsigned char data;
-    const bool terminateWithEmptyByte;
-
-    pushableBitSequence(int len, int num, bool addEmptyByte = false) : 
-        length((unsigned char)len), data((unsigned char)num), terminateWithEmptyByte(addEmptyByte){}
-
-    pushableBitSequence(char len, char num, bool addEmptyByte = false) : 
-        length((unsigned char)len), data((unsigned char)num), terminateWithEmptyByte(addEmptyByte){}
-
-    pushableBitSequence(unsigned char len, unsigned char num, bool addEmptyByte = false) : 
-        length(len), data(num), terminateWithEmptyByte(addEmptyByte){}
-
-    pushableBitSequence(int len, unsigned char num, bool addEmptyByte = false) : 
-        length((unsigned char)len), data(num), terminateWithEmptyByte(addEmptyByte){}
-};
 
 class BitStream{
     private:
@@ -34,6 +19,14 @@ class BitStream{
     public:
         BitStream(){}
         bool push(pushableBitSequence e);
+        unsigned char pop(){
+            unsigned char c = bytes.at(index);
+            bytes.pop_back();
+            index--;
+            offset = 0;
+            return c;
+        }
+        bool set(int i, int off, pushableBitSequence e);
 
         inline pair<char*, size_t> toArray(){
             char* arr = new char[bytes.size()];
@@ -46,6 +39,7 @@ class BitStream{
             return index;
         }
         inline int getOffset(){return offset;}
+        inline pair<int, int> getPosition(){return pair<int, int>(index, offset);}
 
         inline bool fillByte(){
             if(offset == 0){return false;}

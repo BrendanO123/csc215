@@ -7,8 +7,6 @@
 #include "FileManager.h"
 #include "TokenProcessor.h"
 
-typedef unsigned char ubyte;
-
 using namespace std;
 
 int main(int argc, char *argv[]) {

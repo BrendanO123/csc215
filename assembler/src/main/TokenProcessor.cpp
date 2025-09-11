@@ -6,20 +6,25 @@
 
 using namespace std;
 
-const regex TokenProcessor :: RAM_regex = regex("[0-9]+");
-const regex TokenProcessor :: register_regex = regex("[rR]?[a-eA-EhlmHLM]");
-const regex TokenProcessor :: lookup_regex = regex("[a-zA-Z_][a-zA-Z0-9-_\\.]*");
+const regex TokenProcessor :: variable_regex = regex("[a-zA-Z_][a-zA-Z0-9-_\\.]*");
+const regex TokenProcessor :: instruction_regex = regex("[a-zA-Z]+");
 const regex TokenProcessor :: sudoOp_regex = regex("\\.[a-zA-Z-_]+");
+const regex TokenProcessor :: offset_regex = regex("-?[0-9]+");
+const pair<pushableBitSequence, pushableBitSequence> TokenProcessor :: SPI = pair<pushableBitSequence, pushableBitSequence>(
+    pushableBitSequence(8, 0041),
+    pushableBitSequence(8, 0371)
+);
 
 TokenProcessor :: TokenProcessor(){
     data = BitStream();
-    definitionKeywords.emplace(".define", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".define", TokenProcessor :: defineStatic);
     definitionKeywords.emplace(".DEFINE", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".def", TokenProcessor ::  defineStatic);
-    definitionKeywords.emplace(".var", TokenProcessor ::  defineStatic);
-    definitionKeywords.emplace(".VAR", TokenProcessor ::  defineStatic);
-    definitionKeywords.emplace(".variable", TokenProcessor ::  defineStatic);
-    definitionKeywords.emplace(".VARIABLE", TokenProcessor ::  defineStatic);
+    definitionKeywords.emplace(".def", TokenProcessor :: defineStatic);
+    definitionKeywords.emplace(".DEF", TokenProcessor :: defineStatic);
+    definitionKeywords.emplace(".var", TokenProcessor :: defineStatic);
+    definitionKeywords.emplace(".VAR", TokenProcessor :: defineStatic);
+    definitionKeywords.emplace(".variable", TokenProcessor :: defineStatic);
+    definitionKeywords.emplace(".VARIABLE", TokenProcessor :: defineStatic);
 
     definitionKeywords.emplace(".pos", TokenProcessor :: positionDefStatic);
     definitionKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
@@ -30,103 +35,251 @@ TokenProcessor :: TokenProcessor(){
     definitionKeywords.emplace(".function", TokenProcessor :: positionDefStatic);
     definitionKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
-    InstructionLoader :: initializeLookups(lookups, suffixes);
+    definitionKeywords.emplace(".relativeJump", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".relJump", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".relJmp", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".RELATIVE_JUMP", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".REL_JUMP", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".REL_JMP", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".offsetJump", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".offJmp", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".OFFSET_JUMP", TokenProcessor :: relJumpStatic);
+    definitionKeywords.emplace(".OFF_JMP", TokenProcessor :: relJumpStatic);
 
-    //TODO:
-        // better immediates
-        // better memory addresses (65k?)
-        // relative jump sudo op: 
-            // .rel_jump <jump_instruction> <location> <offset>
-            // e.g.:
-                // .define start
-                // .rel_jump CC start -3
-        // hoisting = parser + linker
-            // keep track of unresolved symbols as you go but infer length of sequence
-            // once done, re-eval symbols and report undefined symbols
+    definitionKeywords.emplace(".initSP", TokenProcessor :: initSPStatic);
+    definitionKeywords.emplace(".INIT_SP", TokenProcessor :: initSPStatic);
+    definitionKeywords.emplace(".initStackPointer", TokenProcessor :: initSPStatic);
+    definitionKeywords.emplace(".initializeStackPointer", TokenProcessor :: initSPStatic);
+    definitionKeywords.emplace(".INIT_STACK_POINTER", TokenProcessor :: initSPStatic);
+    definitionKeywords.emplace(".INITIALIZE_STACK_POINTER", TokenProcessor :: initSPStatic);
+
+    InstructionLoader :: initializeLookups(opCodes, instructionFormats, variables);
 }
 
 bool TokenProcessor :: processLine(vector<string> tokens){
-    pushableBitSequence* footer = nullptr;
-    for(string token : tokens){
-        if(footer != nullptr){
-            if(footer -> length + data.getOffset() == 8){data.push(*footer); footer = nullptr;}
-        }
-        if(regex_match(token, RAM_regex)){
-            data.push(pushableBitSequence(8, parseInt(token), true));
-        }
-        else if(regex_match(token, register_regex)){
-            data.push(pushableBitSequence(3, parseReg(token)));
-        }
-        else if(regex_match(token, lookup_regex)){
-            if(lookups.find(token) == lookups.end()){return false;}
-            data.push(lookups.at(token));
-            if(suffixes.find(token) != suffixes.end() && footer == nullptr){
-                footer = &suffixes.at(token);
-            }
-        }
-        else if (regex_match(token, sudoOp_regex)){
-            if(definitionKeywords.find(token) == definitionKeywords.end()){return false;}
-            pair<string, pushableBitSequence> result = definitionKeywords.at(token)(tokens, this);
-            if(result.first == "" || result.second.length == 0){return false;}
-            if(lookups.find(result.first) != lookups.end()){return false;}
-            lookups.emplace(result.first, result.second);
-            return true;
-        }
-        else{return false;}
+    if(tokens.size()<1){return false;}
+    string first = tokens.at(0);
+    if(regex_match(first, sudoOp_regex)){
+        if(definitionKeywords.find(first) == definitionKeywords.end()){return false;}
+        return definitionKeywords.at(first)(tokens, this);
     }
-    if(footer != nullptr){data.push(*footer);}
-    data.fillByte();
-    return true;
+    if(regex_match(first, instruction_regex)){
+        if(opCodes.find(first) == opCodes.end()){return false;}
+        if(instructionFormats.find(first) == instructionFormats.end()){return false;}
+
+        int tokenIndex = 1;
+        int opCodePieceIndex = 1;
+
+        auto format = instructionFormats.at(first);
+        auto opCodePieces = opCodes.at(first);
+        data.push(opCodePieces.at(0));
+
+        for(int formatIndex = 1; formatIndex < format.size(); formatIndex++){
+            if(tokenIndex > tokens.size()){return false;}
+
+            if(format.at(formatIndex) == pushableBitSequenceTemplates :: OP_CODE){
+                data.push(opCodePieces.at(opCodePieceIndex));
+                opCodePieceIndex++;
+                continue;
+            }
+
+            if(variables.find(tokens.at(tokenIndex)) != variables.end()){
+                data.push(
+                    pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)].intInitializer(
+                        variables.at(tokens.at(tokenIndex)).data
+                    )
+                );
+                tokenIndex++;
+                continue;
+            }
+
+            auto e = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
+                [format.at(formatIndex)];
+            if(e.isType(tokens.at(tokenIndex))){
+                try{
+                    auto pushable = e.stringInitializer(tokens.at(tokenIndex));
+                    if(pushable.length > 0){
+                        data.push(pushable); 
+                        tokenIndex++; 
+                        continue;
+                    }
+                }
+                catch(invalid_argument exp){
+                    cerr << "non-numerical token parsing attempted: " << exp.what() << endl;
+                }
+            }
+            if(regex_match(tokens.at(tokenIndex), variable_regex)){
+                missingVars.emplace(
+                    data.getPosition(), 
+                    e, 
+                    tokens.at(tokenIndex)
+                );
+                data.push(e.intInitializer(0));
+            }
+            else{
+                data.push(e.intInitializer(0));
+                return false;
+            }
+            tokenIndex++;
+        }
+
+        data.fillByte();
+        return true;
+    }
+    return false;
 }
 
 BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
-    vector<string> line;
+    // parse
     bool valid = true;
+    vector<string> line;
     while(tokens.size() > 0){
         line = tokens.front();
         tokens.pop();
         if(!processLine(line)){
-            cerr << "Errors decected on line: ";
+            cerr << "Errors detected on line: ";
             for(string token : line){cerr << token << ' ';}
             cerr << endl;
             throw invalid_argument("Program is Invalid");
         };
     }
-    if(valid){cout << "Program is valid" << endl;}
+    if(valid){cout << "Parsed Program Successfully, Entering Linking" << endl;}
+
+    // link
+    valid = true;
+    int staleCounter = 0;
+    while(!missingVars.empty() && staleCounter < missingVars.size()){
+        auto e = missingVars.front();
+        missingVars.pop();
+        if(variables.find(e.varName) == variables.end()){
+            missingVars.push(e); 
+            staleCounter++;
+            continue;
+        }
+        else{
+            data.set(
+                e.index, 
+                e.offset, 
+                e.element.intInitializer(
+                    variables.at(e.varName).data + (e.memoryAddressOffset.has_value() ? e.memoryAddressOffset.value() : 0)
+                )
+            );
+            staleCounter = 0;
+        }
+    }
+    if(missingVars.size()){
+        cerr << "Undefined Symbols Referenced:" << endl;
+        while(missingVars.size()){
+            auto e = missingVars.front();
+            missingVars.pop();
+            cerr << e.varName << endl;
+        }
+        throw invalid_argument("Program is Invalid");
+    }
+    else{cout << "Program is valid" << endl;}
     return data;
 }
 
-pair<string, pushableBitSequence> TokenProcessor :: define(vector<string> tokens){
-    if(tokens.size()>=3){ // must have all the peices of the def
-        // must be a valid var name
-        if(!regex_match(tokens.at(1), lookup_regex)){return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));}
-        
-        // must be a valid token to replace the name with
-        string token = tokens.at(2);
-        if(regex_match(token, RAM_regex)){
-            return pair<string, pushableBitSequence>(tokens.at(1), pushableBitSequence(8, parseInt(token), true));
-        }
-        else if(regex_match(token, register_regex)){
-            return pair<string, pushableBitSequence>(tokens.at(1), pushableBitSequence(3, parseReg(token)));
-        }
-        else if(regex_match(token, lookup_regex)){
-            if(lookups.find(token) != lookups.end()){
-                return pair<string, pushableBitSequence>(tokens.at(1), lookups.at(token));
-            }
+bool TokenProcessor :: define(vector<string> tokens){
+    if(tokens.size() < 3){return false;} // must have all the pieces of the def
+    if(!regex_match(tokens.at(1), variable_regex)){return false;} // must be a valid var name
+    
+    // must be a valid token to replace the name with
+    string token = tokens.at(2);
+    if(variables.find(token) != variables.end()){
+        variables.emplace(tokens.at(1), variables.at(token));
+        return true;
+    }
+    for(pushableBitSequenceTemplate e : pushableBitSequenceTemplates :: pushableBitSequenceTemplates){
+        if(e.isType(token)){
+            pushableBitSequence test = e.stringInitializer(token);
+            if(test.length < 0){continue;}
+            variables.emplace(tokens.at(1), test);
+            return true;
         }
     }
-    return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));
+    return false;
 }
 
-pair<string, pushableBitSequence> TokenProcessor :: positionDef(vector<string> tokens){
-    if(tokens.size()>=2){ // must have all the peices of the def
-        // must be a valid var name
-        if(!regex_match(tokens.at(1), lookup_regex)){return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));}
-        
-        // get current position in RAM to give a value to named location and add as a memory adress
-        int index = data.getIndex();
-        if(index == -1){return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));}
-        return pair<string, pushableBitSequence>(tokens.at(1), pushableBitSequence(8, index, true));
+bool TokenProcessor :: positionDef(vector<string> tokens){
+    if(tokens.size() < 2){return false;} // must have all the pieces of the def
+    if(!regex_match(tokens.at(1), variable_regex)){return false;} // must be a valid var name
+    
+    // get current position in RAM to give a value to named location and add as a memory address
+    int index = data.getIndex();
+    if(index == -1){return false;}
+    variables.emplace(
+        tokens.at(1), 
+        pushableBitSequenceTemplates :: getIntBP(index)
+    );
+    return true;
+}
+
+bool TokenProcessor :: relJump(vector<string> tokens){
+    if(tokens.size() < 4){return false;}
+    // first non-pseudo token must be a valid jmp or call instruction
+    if(
+        !regex_match(tokens.at(1), instruction_regex) || 
+        opCodes.find(tokens.at(1)) == opCodes.end() ||
+        instructionFormats.find(tokens.at(1)) == instructionFormats.end()
+    ){return false;}
+
+    // get opcode
+    vector<pushableBitSequence> opCodPieces = opCodes.at(tokens.at(1));
+    if(opCodPieces.size()>1){return false;}
+    data.push(opCodPieces.at(0));
+
+    auto format = instructionFormats.at(tokens.at(1));
+    if(format.at(1) != pushableBitSequenceTemplates :: BYTE_PAIR){return false;}
+    if(!regex_match(tokens.at(3), offset_regex)){return false;}
+    int offset = parseInt(tokens.at(3));
+
+    // get memory address and offset and push full BytePair
+    if(variables.find(tokens.at(2)) != variables.end()){
+        data.push(
+            pushableBitSequenceTemplates :: getIntBP(variables.at(tokens.at(2)).data + offset)
+        );
+        return true;
     }
-    return pair<string, pushableBitSequence>("", pushableBitSequence(0, 0));
+    pushableBitSequenceTemplate BP = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
+        [pushableBitSequenceTemplates :: BYTE_PAIR];
+    if(BP.isType(tokens.at(2))){
+        try{
+            data.push(
+                pushableBitSequenceTemplates :: getIntBP(parseInt(tokens.at(2).substr(1)) + offset)
+            );
+            return true;
+        }
+        catch(invalid_argument e){
+            cerr << "non-numerical token parsing attempted: " << e.what() << endl;
+        }
+    }
+    if(regex_match(tokens.at(2), variable_regex)){
+        missingVars.emplace(
+            data.getPosition(),
+            BP,
+            tokens.at(2),
+            offset
+        );
+        data.push(BP.intInitializer(0));
+        return true;
+    }
+    data.push(BP.intInitializer(0));
+    return false;
+}
+
+bool TokenProcessor :: initSP(){
+    if(variables.find("LAST_ADDRESS") == variables.end()){
+        variables.emplace(
+            "LAST_ADDRESS",
+            pushableBitSequenceTemplates :: pushableBitSequenceTemplates[
+                pushableBitSequenceTemplates :: BYTE_PAIR
+            ].intInitializer(estimatedRAMSize)
+        );
+    }
+    data.push(SPI.first);
+    data.push(variables.at("LAST_ADDRESS"));
+    data.push(SPI.second);
+
+    return true;
 }
