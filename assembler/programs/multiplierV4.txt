@@ -34,7 +34,7 @@ MVI D 0
 LXI HL r0
 
 # init counter
-MVI B 4
+MVI B 8
 
 # for loop
 .pos loop
