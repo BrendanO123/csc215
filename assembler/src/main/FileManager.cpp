@@ -37,7 +37,8 @@ bool FileManager :: writeOut(char* data, size_t size, string fileName){
     string line;
     stringstream ss = stringstream();
     for(int i = 0; i < size; i++){
-        file << uint((data[i] & (3 << 6)) >> 6) << uint((data[i] & (7 << 3)) >> 3) << uint(data[i] & 7) << '\n';
+        file << uint((data[i] & (3 << 6)) >> 6) << uint((data[i] & (7 << 3)) >> 3) << uint(data[i] & 7);
+        if(i < size -1){file << '\n';}
     }
     file.close();
     return false;
@@ -63,13 +64,12 @@ queue<vector<string>> FileManager :: tokenizeFile(string fileName){
     vector<string> tokens = vector<string>();
     sregex_token_iterator end;
     while (getline(file, line)) {
-        if(line.empty() || line.at(0) == '#'){tokens = vector<string>(); continue;}
         for(auto iter = sregex_token_iterator(line.begin(), line.end(), pattern, -1); iter != end; iter++){
             if(!iter->str().empty()){
+                if(iter->str().at(0) == '#'){break;}
                 tokens.push_back(iter->str());
             }
         }
-        if(tokens.empty() || (!tokens.at(0).empty() && tokens.at(0).at(0) == '#')){tokens = vector<string>(); continue;}
         if(!tokens.empty()){lines.emplace(tokens);}
         tokens = vector<string>();
     }
