@@ -1,0 +1,118 @@
+# stack pointer starts at address 0 (first byte pushed goes at address -1) which is very problematic
+# because it causes the stack pointer to address bytes in memory which don't exist in the RAM 
+# this in turn causes RET functions to go to address 0 instead of back to the CALL because the return address was thrown out
+# because of this the Stack Pointer needs to be manually set, I added a psuedo op to do this automatically but the code boils down to
+# LXI HL r8191
+# SPHL
+
+# initialization
+.initSP #set stack pointer
+LXI HL data #load pointer to first byte of data into HL regs for MOV instruction memory references
+MVI C 0 #initialize loop counter (used to determine how many outputs to pop off the stack and move into nearby memory)
+
+# load next numbers to multiply
+.pos start
+MOV A M
+INX HL
+MOV E M
+INX HL
+
+# if multiplier is zero, assume we have found the end of the numbers to multiply
+ORA A
+JZ cleanUp
+
+# else increment product count
+INR C
+
+PUSH HL #push pointer to next number pair to stack bc registers are wipped by mult func
+CALL mult
+
+# push product and retrieve pointer 
+POP DE
+PUSH HL
+XCHG
+
+JMP start #loop
+
+
+# to make the products easier to find, I am going to move them from the end of RAM to after the data for the program
+# I am also going to fix the order so that it lines up with the order of the data
+
+# to start move pointer to end of memory used to store product by incrementing by 2 bytes per product * product count
+.func cleanUp
+MVI B 0
+DAD BC
+DAD BC
+
+.pos moveAnswersLoop
+DCR C #for (c=product count; c>=0; c--)
+JM end
+
+# move two bytes from stack to RAM at pointer and decrement pointer by two
+POP DE
+MOV M D
+DCX HL 
+MOV M E
+DCX HL
+
+JMP moveAnswersLoop
+
+.pos end
+HLT
+
+
+# multiplication function
+.func mult
+# clear registers
+MVI D 0
+LXI HL r0
+
+# init counter
+MVI B 8
+
+# for loop
+.pos loop
+
+# test LSB of multiplier
+RAR
+JNC next
+# add multiplicand to partial product if one
+DAD DE
+
+.pos next
+# LShift multiplicand
+XCHG 
+DAD HL
+XCHG
+
+# repeat for loop while counter is > 0 or return when not
+DCR B
+JNZ loop
+
+RAR
+RET
+
+
+# data for the program
+# this can be a list of any length (within 255) of number pairs, which will be multiplied together and placed after the data 
+.pos data
+7
+9
+10
+11
+13
+6
+9
+10
+7
+9
+7
+9
+7
+9
+
+# program only terminates when 0 * x is detected
+r0
+
+# this is where the result will be stored
+# the first (most significant) byte of the first product will be two bytes after the last non-zero number pair
