@@ -68,4 +68,6 @@ namespace pushableBitSequenceTemplates{
         pushableBitSequenceTemplate(getIntByte, getStringByte, regex("-?[0-9]+")),
         pushableBitSequenceTemplate(getIntBP, getStringBP, regex("[rR][0-9]+"))
     };
+
+    pushableBitSequence tryGetLiteral(string token);
 }

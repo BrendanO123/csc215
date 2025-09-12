@@ -43,3 +43,14 @@ pushableBitSequence pushableBitSequenceTemplates :: getStringBP(string token){
     e.second.emplace((unsigned char)(value>>8));
     return e;
 }
+
+pushableBitSequence pushableBitSequenceTemplates :: tryGetLiteral(string token){
+        for(pushableBitSequenceTemplate e : pushableBitSequenceTemplates :: pushableBitSequenceTemplates){
+            if(e.isType(token)){
+                pushableBitSequence test = e.stringInitializer(token);
+                if(test.length < 0){continue;}
+                return test;
+            }
+        }
+        return pushableBitSequence(-1, 0);
+    }

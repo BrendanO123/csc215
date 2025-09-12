@@ -36,7 +36,7 @@ $(TARGET) : $(OBJS) $(ENTRY) $(SRCS_H)
 #rules for generating .o files
 -include $(DEPS)
 
-#Rule to generate app.o (seperate bc no .h for the .cpp)
+#Rule to generate app.o (separate bc no .h for the .cpp)
 $(ENTRY) : $(SRC_PATH)$(MAIN).cpp
 	@$(CXX) $(CXXFLAGS) $(CPPVERSION) -c -o $@ $< -I$(INCLUDE)
 
@@ -56,7 +56,7 @@ build:
 	@rm -f $(OBJS) $(ENTRY)
 
 
-#recompile .out if neccessary and run
+#recompile .out if necessary and run
 run:
 	@make -s
 	@./$(TARGET)

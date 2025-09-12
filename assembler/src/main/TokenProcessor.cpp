@@ -126,7 +126,10 @@ bool TokenProcessor :: processLine(vector<string> tokens){
         data.fillByte();
         return true;
     }
-    return false;
+    pushableBitSequence e = pushableBitSequenceTemplates :: tryGetLiteral(first);
+    if(e.length < 0){return false;}
+    data.push(e);
+    return true;
 }
 
 BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
@@ -190,15 +193,11 @@ bool TokenProcessor :: define(vector<string> tokens){
         variables.emplace(tokens.at(1), variables.at(token));
         return true;
     }
-    for(pushableBitSequenceTemplate e : pushableBitSequenceTemplates :: pushableBitSequenceTemplates){
-        if(e.isType(token)){
-            pushableBitSequence test = e.stringInitializer(token);
-            if(test.length < 0){continue;}
-            variables.emplace(tokens.at(1), test);
-            return true;
-        }
-    }
-    return false;
+
+    pushableBitSequence e = pushableBitSequenceTemplates :: tryGetLiteral(token);
+    if(e.length < 0){return false;}
+    variables.emplace(tokens.at(1), e);
+    return true;
 }
 
 bool TokenProcessor :: positionDef(vector<string> tokens){
