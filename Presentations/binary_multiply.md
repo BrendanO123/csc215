@@ -1,0 +1,71 @@
+# Binary Multiplication
+
+## What the Program Does
+This program takes an array of numbers with arbitrary length from the RAM memory after the instruction code and multiplies them together, storing the result after the parameters in RAM. To do this, it defines a multiplication function that takes in two numbers in the `A` and `E` registers and multiplies them together, storing the result in the `HL` register pair. This function is then called repeatedly throughout the function. The main program execution repeatedly loads in two new numbers from RAM, and tests if the first number is zero. If the number is zero, the program exits the loop assuming the end of the array has been found. If not, it multiplies the two numbers together and pushes the result to the stack. Once the loop has finished, it pops all the products off the stacks and places them in RAM after the data it used in the execution.
+
+## Initialization
+
+This section sets up the stack pointer, data pointer, and product count variables. The stack pointer is a hardware level 16-bit register, which keeps track of where in RAM the next byte pushed to the stack should be placed. This needs to be manually initialized to prevent it from defaulting to RAM address 65k, which is not available in the limited storage on the simulator. The data pointer is a variable I am using to keep track of where in RAM the next two numbers to multiply together can be found. Finally, the product count is a counter I am using to keep track of how many products were generated, in order to move the right number of bytes off of the stack and into the new RAM location when finished.
+
+| ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
+|----------:|-------------|-------------------|-----------------------------------------------|
+|      000  | LXI HL, r8191 | 041 377 037     | Load a pointer to the last RAM address into the `HL` registers |
+|      003  | SPHL        | 371               | Set the stack pointer to this address         |
+|      004  | LXI HL, 102 | 041 102 000       | Load a pointer to the start of the program's data into the `HL` registers |
+|      007  | MVI C, 0    | 016 000           | Set register `C` to zero                      |
+
+## How the Main Loop Works
+
+As said above, the main program loop repeatedly loads in two new numbers from RAM, and tests if the first number is zero. If the number is zero, the program exits the loop assuming the end of the array has been found. If not, it multiplies the two numbers together and pushes the result to the stack. Once the loop has finished, it pops all the products off the stacks and places them in RAM after the data it used in the execution.
+
+| ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
+|----------:|-------------|-------------------|-----------------------------------------------|
+|      011  | MOV A, M    | 176               | Load the accumulator from the memory that the `HL` registers point to |
+|      012  | INX HL      | 043               | Increment the `HL` registers to point to the next address |
+|      013  | MOV E, M    | 136               | Load the `E` register from the memory that the `HL` registers point to |
+|      014  | INX HL      | 043               | Increment the `HL` registers to point to the next address |
+|      015  | ORA A       | 267               | Logical OR the accumulator against itself (can set the Zero flag) |
+|      016  | JZ 034      | 312 034 000       | If the accumulator is zero, jump out of the loop |
+|      021  | INR C       | 014               | Increment the product count                   |
+|      022  | PUSH HL     | 051               | Push the data pointer in `HL` to the stack for the next iteration |
+|      023  | CALL 055    | 353               | Call the multiplication function              |
+
+## Multiplication Function
+
+| ADDR (oct) | MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
+|----------:|-------------|-------------------|-----------------------------------------------|
+|      055  | MVI D,0     | 026 000           | Clear D (high byte of DE = 0)                 |
+|      057  | LXI H,0     | 041 000 000       | Clear HL (product accumulator)                |
+|      062  | MVI B,8     | 006 010           | Loop counter B = 8 (process 8 bits)               |
+|      064  | RAR         | 037               | Rotate A right through Carry (get multiplier LSB) |
+|      065  | JNC 071     | 322 071 000       | If Carry clear, jump to first XCHG at 071     |
+|      070  | DAD DE      | 031               | (Executed only if Carry = 1) HL = HL + DE     |
+|      071  | XCHG        | 353               | Swap HL <-> DE                                 |
+|      072  | DAD HL      | 051               | DE = DE + HL  (effectively shift DE left)     |
+|      073  | XCHG        | 353               | Swap back HL <-> DE                            |
+|      074  | DCR B       | 005               | Decrement loop counter                         |
+|      075  | JNZ 064     | 302 064 000       | If B != 0, repeat loop (back to RAR at 064)   |
+
+## Explanation
+
+1. The **multiplier** (8 bits) is stored in the A register. It comes from memory address 128.
+2. The **multiplicand** (8 bits) is stored in the E register (low byte). It comes from memory address 129. It is also storing a byte of 0 at the D register (high byte). This is because we need extra empty space for all the left shifting we're going to do.
+3. The H and L registers are cleared to initialize the partial product. This is where we will accumulate our final answer!
+4. The **iteration count** starts at 8. It is in register B. It will be decremented every time we move to the next bit of the multiplier. **When the iteration count is 0, the program will end; the mechanics of that will be explained later.**
+5. We start by consuming the rightmost bit of our multiplier. This is done using the RAR instruction; it's basically a right shift, but instead of the bit at the end disappearing, it replaces the Carry bit. The carry bit is very important for the control flow of the program.
+6. If the Carry bit is NOT set, meaning that the rightmost bit that we just consumed was not on, we jump to instruction 033, which basically repeats the loop. This is accomplished using the JNC (jump-no-carry) instruction.
+7. If the Carry bit IS set, though... that means we need to add the multiplicand to the product. This is accomplished using the DAD (double add) instruction, which adds a certain register pair to HL. In this case, we target the DE registers since that's where our multiplicand is.
+8. Now we need to think about moving on to the next bit in our number. It is two times the last bit. So instead of adding 1 times the multiplicand, we need to add 2 times the multiplicand since the second bit represents a 2. In order to accomplish this, we multiply the multiplicand by 2. Multiplication is communitive; it doesn't matter if we do `(2 * current multiplier bit) * multiplicand` or `(2 * multiplicand) * current multiplier bit` What we just did is equivalent to adding a zero to the end of the number in pen-and-paper multiplication when you move on the to the next digit.
+9. The doubling from alst step is accomplished using a DAD instruction. We have to XCHG first, though, since you are only allowed to DAD to HL. This puts the multiplicand in HL, then we double it by adding HL to itself, and then we swap back using another XCHG.
+10. Finally, we decrement register B (our loop counter) by 1. This also updates the Zero flag...
+11. If the Zero flag is not set (meaning we still have more bits to consume), then we jump back to the beginning of the loop. This functions the same as a C++ for loop, counting down from 8! All that's left is a SHLD (store HL directly) instruction to store our result, and then we're done!
+
+## New Instructions Links
+
+- [CALL](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#call)
+- [RET](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#ret)
+- [SPHL](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#sphl)
+- [ORA](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#ora)
+- [JZ](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#jz)
+- [PUSH](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#push)
+- [POP](https://ubuntourist.codeberg.page/Altair-8800/part-4.html#pop)
