@@ -14,7 +14,7 @@ This section sets up the stack pointer, data pointer, and product count variable
 |      004  | LXI HL, 102 | 041 102 000       | Load a pointer to the start of the program's data into the `HL` registers |
 |      007  | MVI C, 0    | 016 000           | Set register `C` to zero                      |
 
-## How the Main Loop Works
+## The Main Loop
 
 As said above, the main program loop repeatedly loads in two new numbers from RAM, and tests if the first number is zero. If the number is zero, the program exits the loop assuming the end of the array has been found. If not, it multiplies the two numbers together and pushes the result to the stack. Once the loop has finished, it pops all the products off the stacks and places them in RAM after the data it used in the execution.
 
@@ -27,24 +27,47 @@ As said above, the main program loop repeatedly loads in two new numbers from RA
 |      015  | ORA A       | 267               | Logical OR the accumulator against itself (can set the Zero flag) |
 |      016  | JZ 034      | 312 034 000       | If the accumulator is zero, jump out of the loop |
 |      021  | INR C       | 014               | Increment the product count                   |
-|      022  | PUSH HL     | 051               | Push the data pointer in `HL` to the stack for the next iteration |
-|      023  | CALL 055    | 353               | Call the multiplication function              |
+|      022  | PUSH HL     | 345               | Push the data pointer in `HL` to the stack for the next iteration |
+|      023  | CALL 055    | 315 055 000       | Call the multiplication function              |
+|      026  | POP DE      | 321               | Pop the data pointer into the `DE` registers  |
+|      027  | PUSH HL     | 345               | Push the product to the stack (product is stored in `HL` registers) |
+|      030  | XCHG        | 353               | Move the data pointer to `HL` registers       |
+|      031  | JMP         | 303 011 000       | Jump back to the top of the loop at 011       |
 
 ## Multiplication Function
 
-| ADDR (oct) | MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
+| ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
 |----------:|-------------|-------------------|-----------------------------------------------|
 |      055  | MVI D,0     | 026 000           | Clear D (high byte of DE = 0)                 |
 |      057  | LXI H,0     | 041 000 000       | Clear HL (product accumulator)                |
-|      062  | MVI B,8     | 006 010           | Loop counter B = 8 (process 8 bits)               |
+|      062  | MVI B,8     | 006 010           | Loop counter B = 8 (process 8 bits)           |
 |      064  | RAR         | 037               | Rotate A right through Carry (get multiplier LSB) |
 |      065  | JNC 071     | 322 071 000       | If Carry clear, jump to first XCHG at 071     |
 |      070  | DAD DE      | 031               | (Executed only if Carry = 1) HL = HL + DE     |
-|      071  | XCHG        | 353               | Swap HL <-> DE                                 |
+|      071  | XCHG        | 353               | Swap HL <-> DE                                |
 |      072  | DAD HL      | 051               | DE = DE + HL  (effectively shift DE left)     |
-|      073  | XCHG        | 353               | Swap back HL <-> DE                            |
-|      074  | DCR B       | 005               | Decrement loop counter                         |
+|      073  | XCHG        | 353               | Swap back HL <-> DE                           |
+|      074  | DCR B       | 005               | Decrement loop counter                        |
 |      075  | JNZ 064     | 302 064 000       | If B != 0, repeat loop (back to RAR at 064)   |
+
+## The Cleanup
+After the main loop finishes, the products of the data are stored in reverse order in the last RAM addresses available in the simulator. In order to make the products more usable, they are moved off of the stack and into new RAM addresses after the program's data. This also resets the stack pointer, leaving the full stack available for more program execution.
+
+
+| ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
+|----------:|-------------|-------------------|-----------------------------------------------|
+|      034  | MVI B, 0    | 006 000           | Clear the `B` register to add the `BC` registers to the data pointer |
+|      036  | DAD BC      | 011               | Increment the data pointer in the `HL` registers by 2x the product count, `BC` |
+|      037  | DAD BC      | 011               | This causes them to point to the end of the RAM for the products to fix the reverse order |
+|      040  | DCR C       | 015               | Decrement the `C` register as part of the for-loop |
+|      041  | JM 054      | 372 054 000       | If negative, exit the loop. The same as the C++ for loop: `for(c=count; c>=0; c--)` |
+|      044  | POP DE      | 321               | Pop a product off the stack into the `DE` registers |
+|      045  | MOV M D     | 162               | Store the most significant byte to the RAM address at the data pointer |
+|      046  | DCX HL      | 053               | Decrement the data pointer                    |
+|      047  | MOV M E     | 163               | Store the least significant byte to the RAM address at the data pointer |
+|      050  | DCX HL      | 053               | Decrement the data pointer                    |
+|      051  | JMP 040     | 303 040 000       | Jump to the top of the loop at 040            |
+|      054  | HLT         | 166               | Once done, halt the execution to prevent infinite loops |
 
 ## Explanation
 
