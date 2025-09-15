@@ -2,7 +2,7 @@
 # because it causes the stack pointer to address bytes in memory which don't exist in the RAM 
 # this in turn causes RET functions to go to address 0 instead of back to the CALL because the return address was thrown out
 # because of this the Stack Pointer needs to be manually set, I added a psuedo op to do this automatically but the code boils down to
-# LXI HL r8191
+# LXI HL r8192
 # SPHL
 
 # initialization

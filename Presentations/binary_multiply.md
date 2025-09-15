@@ -9,7 +9,7 @@ This section sets up the stack pointer, data pointer, and product count variable
 
 | ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
 |----------:|-------------|-------------------|-----------------------------------------------|
-|      000  | LXI HL, r8191 | 041 377 037     | Load a pointer to the last RAM address into the `HL` registers |
+|      000  | LXI HL, r8192 | 041 377 037     | Load a pointer to the last RAM address into the `HL` registers |
 |      003  | SPHL        | 371               | Set the stack pointer to this address         |
 |      004  | LXI HL, 102 | 041 102 000       | Load a pointer to the start of the program's data into the `HL` registers |
 |      007  | MVI C, 0    | 016 000           | Set register `C` to zero                      |
@@ -101,7 +101,7 @@ After the main loop finishes, the products of the data are stored in reverse ord
 See also: [assembler README](../assembler/README.md).
 ```
 # initialization
-LXI HL r8191 #set stack pointer
+LXI HL r8192 #set stack pointer
 SPHL
 LXI HL data #load pointer to first byte of data into HL regs for MOV instruction memory references
 MVI C 0 #initialize loop counter (used to determine how many outputs to pop off the stack and move into nearby memory)

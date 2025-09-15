@@ -30,7 +30,7 @@ struct missingVar{
 };
 class TokenProcessor{
     private:
-        static const int estimatedRAMSize = 8192 - 1;
+        static const int estimatedRAMSize = 8192;
         static const pair<pushableBitSequence, pushableBitSequence> SPI;
         static const regex variable_regex;
         static const regex sudoOp_regex;
