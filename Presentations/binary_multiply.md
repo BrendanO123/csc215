@@ -38,9 +38,9 @@ As said above, the main program loop repeatedly loads in two new numbers from RA
 
 | ADDR (oct)| MNEMONIC    | OCTAL BYTES       | EXPLANATION                                   |
 |----------:|-------------|-------------------|-----------------------------------------------|
-|      055  | MVI D,0     | 026 000           | Clear D (high byte of DE = 0)                 |
-|      057  | LXI H,0     | 041 000 000       | Clear HL (product accumulator)                |
-|      062  | MVI B,8     | 006 010           | Loop counter B = 8 (process 8 bits)           |
+|      055  | MVI D, 0    | 026 000           | Clear D (high byte of DE = 0)                 |
+|      057  | LXI HL, 0   | 041 000 000       | Clear HL (product accumulator)                |
+|      062  | MVI B, 8    | 006 010           | Loop counter B = 8 (process 8 bits)           |
 |      064  | RAR         | 037               | Rotate A right through Carry (get multiplier LSB) |
 |      065  | JNC 071     | 322 071 000       | If Carry clear, jump to first XCHG at 071     |
 |      070  | DAD DE      | 031               | (Executed only if Carry = 1) HL = HL + DE     |
@@ -64,9 +64,9 @@ After the main loop finishes, the products of the data are stored in reverse ord
 |      040  | DCR C       | 015               | Decrement the `C` register as part of the for-loop |
 |      041  | JM 054      | 372 054 000       | If negative, exit the loop. The same as the C++ for loop: `for(c=count; c>=0; c--)` |
 |      044  | POP DE      | 321               | Pop a product off the stack into the `DE` registers |
-|      045  | MOV M D     | 162               | Store the most significant byte to the RAM address at the data pointer |
+|      045  | MOV M, D    | 162               | Store the most significant byte to the RAM address at the data pointer |
 |      046  | DCX HL      | 053               | Decrement the data pointer                    |
-|      047  | MOV M E     | 163               | Store the least significant byte to the RAM address at the data pointer |
+|      047  | MOV M, E    | 163               | Store the least significant byte to the RAM address at the data pointer |
 |      050  | DCX HL      | 053               | Decrement the data pointer                    |
 |      051  | JMP 040     | 303 040 000       | Jump to the top of the loop at 040            |
 |      054  | HLT         | 166               | Once done, halt the execution to prevent infinite loops |
@@ -193,7 +193,7 @@ RET
 # this can be a list of any length (within 255) of number pairs, which will be multiplied together and placed after the data 
 .pos data
 
-# program only terminates when 0 * x is detected
+# program only terminates when 0 * x is detected, so adding two zero bytes at the end of the data ensures the program stops
 r0
 
 # this is where the result will be stored
