@@ -92,6 +92,16 @@ JNZ loop
 RAR
 RET
 
+# add clear seperation between program and data
+r0
+r0
+r0
+r0
+r0
+r0
+r0
+r0
+
 
 # data for the program
 # this can be a list of any length (within 255) of number pairs, which will be multiplied together and placed after the data 
