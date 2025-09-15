@@ -9,7 +9,7 @@ All assembly programs should be placed in the `programs` folder within this dire
 In order to run the program, you must first build it with the `makefile` and/or [Node](#node-and-npm) `package.json` scripts. Simply run `npm run build`, `make`, or `make ALL` to generate the final executable called `.assembler.out`. There will also be build artifacts in the `Dependencies/bin` folder including object (`.o`) files and dependency (`.d`) files. These can be cleaned up by running `npm run clean` or `make clean`.
 
 ### Running the Program
-To run the program, run either `npm run assemble -- <file_name>` or `./assembler.out <file_name>`, where `<file_name>` is the name of the text file containing your program, which should be placed in the `programs` folder. The program will output the above-mentioned output files if the program is valid or print out the lines that caused errors without making the files.
+To run the program, run either `npm run assemble -- <file_name>`, `make run_<file_name>`, or `./assembler.out <file_name>`, where `<file_name>` is the name of the text file containing your program, which should be placed in the `programs` folder. The program will output the above-mentioned output files if the program is valid or print out the lines that caused errors without making the files.
 
 ## How the Assembly Language Works
 The assembler breaks up your assembly code into each line, and each line must result in either no machine code added (in the case of pseudo-instructions) or a valid instruction that fits evenly into a number of bytes. To do this, the assembler breaks each line down again into tokens separated by whitespace.

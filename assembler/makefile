@@ -55,11 +55,10 @@ build:
 	@make -s
 	@rm -f $(OBJS) $(ENTRY)
 
-
 #recompile .out if necessary and run
-run:
+run_%:
 	@make -s
-	@./$(TARGET)
+	@./$(TARGET) $(strip $*)
 
 #clean .o and .out files
 clean:
