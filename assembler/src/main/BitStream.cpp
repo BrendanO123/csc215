@@ -20,10 +20,10 @@ bool BitStream :: push(pushableBitSequence e){
 }
 bool BitStream :: set(int i, int off, pushableBitSequence e){
     if(i < 0 || i > index || off < 0 || off > 8){return false;}
-    bytes.at(i) |= e.data << (8 - offset - e.length);
+    bytes.at(i) |= e.data << (8 - off - e.length);
     
     optional<unsigned char> second = e.second;
-    if(second.has_value()){set(i++, off, pushableBitSequence(8, second.value()));}
+    if(second.has_value()){set(i+1, 0, pushableBitSequence(8, second.value()));}
     return true;
 }
 

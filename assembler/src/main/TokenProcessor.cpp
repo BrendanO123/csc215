@@ -134,7 +134,6 @@ bool TokenProcessor :: processLine(vector<string> tokens){
 
 BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
     // parse
-    bool valid = true;
     vector<string> line;
     while(tokens.size() > 0){
         line = tokens.front();
@@ -146,10 +145,9 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
             throw invalid_argument("Program is Invalid");
         };
     }
-    if(valid){cout << "Parsed Program Successfully, Entering Linking" << endl;}
+    cout << "Parsed Program Successfully, Entering Linking" << endl;
 
     // link
-    valid = true;
     int staleCounter = 0;
     while(!missingVars.empty() && staleCounter < missingVars.size()){
         auto e = missingVars.front();
@@ -160,13 +158,11 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
             continue;
         }
         else{
-            data.set(
-                e.index, 
-                e.offset, 
-                e.element.intInitializer(
-                    variables.at(e.varName).data + (e.memoryAddressOffset.has_value() ? e.memoryAddressOffset.value() : 0)
-                )
+            auto element = e.element.intInitializer(
+                int(variables.at(e.varName).data) + (e.memoryAddressOffset.has_value() ? e.memoryAddressOffset.value() : 0) +
+                (variables.at(e.varName).second.has_value() ? (int(variables.at(e.varName).second.value()) << 8) : 0)
             );
+            data.set(e.index, e.offset, element);
             staleCounter = 0;
         }
     }
