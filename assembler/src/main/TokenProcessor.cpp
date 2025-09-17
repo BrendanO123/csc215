@@ -86,7 +86,12 @@ bool TokenProcessor :: processLine(vector<string> tokens){
             if(variables.find(tokens.at(tokenIndex)) != variables.end()){
                 data.push(
                     pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)].intInitializer(
-                        variables.at(tokens.at(tokenIndex)).data
+                        variables.at(tokens.at(tokenIndex)).data + 
+                        (
+                            variables.at(tokens.at(tokenIndex)).second.has_value() ? 
+                            (int(variables.at(tokens.at(tokenIndex)).second.value()) << 8) : 
+                            0
+                        )
                     )
                 );
                 tokenIndex++;
