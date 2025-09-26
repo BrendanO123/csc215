@@ -56,13 +56,17 @@ TokenProcessor :: TokenProcessor(){
     InstructionLoader :: initializeLookups(opCodes, instructionFormats, variables);
 }
 
-bool TokenProcessor :: processLine(vector<string> tokens){
+bool TokenProcessor :: processLineHelper(vector<string> tokens){
     if(tokens.size()<1){return false;}
     string first = tokens.at(0);
+
+    // handle pseudo instructions
     if(regex_match(first, sudoOp_regex)){
         if(sudoOpKeywords.find(first) == sudoOpKeywords.end()){return false;}
         return sudoOpKeywords.at(first)(tokens, this);
     }
+
+    // handle machine code instructions
     if(regex_match(first, instruction_regex)){
         if(opCodes.find(first) == opCodes.end()){return false;}
         if(instructionFormats.find(first) == instructionFormats.end()){return false;}
@@ -72,17 +76,20 @@ bool TokenProcessor :: processLine(vector<string> tokens){
 
         auto format = instructionFormats.at(first);
         auto opCodePieces = opCodes.at(first);
-        data.push(opCodePieces.at(0));
+        data.push(opCodePieces.at(0)); // push opcode
 
+        // loop through tokens in instruction template/format
         for(int formatIndex = 1; formatIndex < format.size(); formatIndex++){
-            if(tokenIndex > tokens.size()){return false;}
+            if(tokenIndex > tokens.size()){return false;} // avoid out of bound token accessing
 
+            // when the next token is NOT a parameter but a hardcoded part of the opcode
             if(format.at(formatIndex) == pushableBitSequenceTemplates :: OP_CODE){
-                data.push(opCodePieces.at(opCodePieceIndex));
+                data.push(opCodePieces.at(opCodePieceIndex)); // push op code piece
                 opCodePieceIndex++;
                 continue;
             }
 
+            // if the next token IS a parameter and is a variable, push variable casted to right parameter type
             if(variables.find(tokens.at(tokenIndex)) != variables.end()){
                 data.push(
                     pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)].intInitializer(
@@ -98,10 +105,14 @@ bool TokenProcessor :: processLine(vector<string> tokens){
                 continue;
             }
 
+            // if next token IS a parameter and is NOT a known variable, get next token template
             auto e = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
                 [format.at(formatIndex)];
+
+            // if the next token matches this template
             if(e.isType(tokens.at(tokenIndex))){
                 try{
+                    // try to push the literal parameter
                     auto pushable = e.stringInitializer(tokens.at(tokenIndex));
                     if(pushable.length > 0){
                         data.push(pushable); 
@@ -110,18 +121,19 @@ bool TokenProcessor :: processLine(vector<string> tokens){
                     }
                 }
                 catch(invalid_argument exp){
+                    // and catch unexpected errors (should be graceful with length < 0 if not a real literal so this is unexpected)
                     cerr << "non-numerical token parsing attempted: " << exp.what() << endl;
                 }
             }
+
+            // if the next token is still not resolved and looks like a variable, assumed to be a unresolved variable and push
             if(regex_match(tokens.at(tokenIndex), variable_regex)){
-                missingVars.emplace(
-                    data.getPosition(), 
-                    e, 
-                    tokens.at(tokenIndex)
-                );
+                missingVars.emplace(data.getPosition().first, tokens, tokens.at(tokenIndex));
                 data.push(e.intInitializer(0));
+                return true;
             }
             else{
+                // finally, if it doesn't look like a variable, push empty data and return an error on this line
                 data.push(e.intInitializer(0));
                 return false;
             }
@@ -131,10 +143,18 @@ bool TokenProcessor :: processLine(vector<string> tokens){
         data.fillByte();
         return true;
     }
+
+    // handle literal data
     pushableBitSequence e = pushableBitSequenceTemplates :: tryGetLiteral(first);
     if(e.length < 0){return false;}
     data.push(e);
     return true;
+}
+inline bool TokenProcessor :: processLine(vector<string> tokens, int index){
+    if(index != -1){data.setPosition(index, 0);}
+    bool result = processLineHelper(tokens);
+    if(index != -1){data.jumpToNewDataPos();}
+    return result;
 }
 
 BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
@@ -158,16 +178,12 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
         auto e = missingVars.front();
         missingVars.pop();
         if(variables.find(e.varName) == variables.end()){
-            missingVars.push(e); 
+            missingVars.push(e);
             staleCounter++;
             continue;
         }
         else{
-            auto element = e.element.intInitializer(
-                int(variables.at(e.varName).data) + (e.memoryAddressOffset.has_value() ? e.memoryAddressOffset.value() : 0) +
-                (variables.at(e.varName).second.has_value() ? (int(variables.at(e.varName).second.value()) << 8) : 0)
-            );
-            data.set(e.index, e.offset, element);
+            processLine(e.lineTokens, e.index);
             staleCounter = 0;
         }
     }
@@ -256,10 +272,9 @@ bool TokenProcessor :: relJump(vector<string> tokens){
     }
     if(regex_match(tokens.at(2), variable_regex)){
         missingVars.emplace(
-            data.getPosition(),
-            BP,
-            tokens.at(2),
-            offset
+            data.getPosition().first,
+            tokens,
+            tokens.at(2)
         );
         data.push(BP.intInitializer(0));
         return true;

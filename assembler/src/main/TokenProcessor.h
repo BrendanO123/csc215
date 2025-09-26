@@ -13,20 +13,11 @@ using namespace std;
 
 struct missingVar{
     int index;
-    int offset;
-    pushableBitSequenceTemplate element;
     string varName;
-    optional<int> memoryAddressOffset;
+    vector<string> lineTokens;
 
-    missingVar(pair<int,int> position, pushableBitSequenceTemplate e, string name) : 
-        index(position.first), offset(position.second), element(e), varName(name){}
-    missingVar(int index, int offset, pushableBitSequenceTemplate e, string name) :
-        index(index), offset(offset), element(e), varName(name){}
-
-    missingVar(pair<int,int> position, pushableBitSequenceTemplate e, string name, int memAddressOffset) : 
-        index(position.first), offset(position.second), element(e), varName(name){memoryAddressOffset.emplace(memAddressOffset);}
-    missingVar(int index, int offset, pushableBitSequenceTemplate e, string name, int memAddressOffset) :
-        index(index), offset(offset), element(e), varName(name){memoryAddressOffset.emplace(memAddressOffset);}
+    missingVar(int index, vector<string> tokens, string name) :
+        index(index), varName(name), lineTokens(tokens){}
 };
 class TokenProcessor{
     private:
@@ -48,7 +39,8 @@ class TokenProcessor{
         unordered_map<string, function<bool(vector<string>, TokenProcessor*)>> sudoOpKeywords =
             unordered_map<string, function<bool(vector<string>, TokenProcessor*)>>(); 
 
-        bool processLine(vector<string> tokens);
+        inline bool processLine(vector<string> tokens, int index = -1);
+        bool processLineHelper(vector<string> tokens);
 
         bool define(vector<string> tokens);
         bool positionDef(vector<string> tokens);

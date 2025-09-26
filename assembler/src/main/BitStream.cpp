@@ -4,7 +4,7 @@ using namespace std;
 
 bool BitStream :: push(pushableBitSequence e){
     if(e.length < 0){return false;}
-    if(offset == 0){
+    if(offset == 0 && !correctingOldData){
         bytes.push_back(e.data << (8 - e.length));
     }
     else{
@@ -19,12 +19,9 @@ bool BitStream :: push(pushableBitSequence e){
     return true;
 }
 bool BitStream :: set(int i, int off, pushableBitSequence e){
-    if(i < 0 || i > index || off < 0 || off > 8){return false;}
-    bytes.at(i) |= e.data << (8 - off - e.length);
-    
-    optional<unsigned char> second = e.second;
-    if(second.has_value()){set(i+1, 0, pushableBitSequence(8, second.value()));}
-    return true;
+    if(!setPosition(i, off)){return false;}
+    push(e);
+    return jumpToNewDataPos();
 }
 
 inline void BitStream :: handleEmptyByteTermination(){
