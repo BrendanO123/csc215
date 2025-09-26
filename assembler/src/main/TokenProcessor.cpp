@@ -17,41 +17,41 @@ const pair<pushableBitSequence, pushableBitSequence> TokenProcessor :: SPI = pai
 
 TokenProcessor :: TokenProcessor(){
     data = BitStream();
-    definitionKeywords.emplace(".define", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".DEFINE", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".def", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".DEF", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".var", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".VAR", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".variable", TokenProcessor :: defineStatic);
-    definitionKeywords.emplace(".VARIABLE", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".define", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".DEFINE", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".def", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".DEF", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".var", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".VAR", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".variable", TokenProcessor :: defineStatic);
+    sudoOpKeywords.emplace(".VARIABLE", TokenProcessor :: defineStatic);
 
-    definitionKeywords.emplace(".pos", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".POS", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".func", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".FUNC", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".function", TokenProcessor :: positionDefStatic);
-    definitionKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".pos", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".position", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".POS", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".POSITION", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".func", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".FUNC", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".function", TokenProcessor :: positionDefStatic);
+    sudoOpKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
-    definitionKeywords.emplace(".relativeJump", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".relJump", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".relJmp", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".RELATIVE_JUMP", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".REL_JUMP", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".REL_JMP", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".offsetJump", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".offJmp", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".OFFSET_JUMP", TokenProcessor :: relJumpStatic);
-    definitionKeywords.emplace(".OFF_JMP", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".relativeJump", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".relJump", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".relJmp", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".RELATIVE_JUMP", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".REL_JUMP", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".REL_JMP", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".offsetJump", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".offJmp", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".OFFSET_JUMP", TokenProcessor :: relJumpStatic);
+    sudoOpKeywords.emplace(".OFF_JMP", TokenProcessor :: relJumpStatic);
 
-    definitionKeywords.emplace(".initSP", TokenProcessor :: initSPStatic);
-    definitionKeywords.emplace(".INIT_SP", TokenProcessor :: initSPStatic);
-    definitionKeywords.emplace(".initStackPointer", TokenProcessor :: initSPStatic);
-    definitionKeywords.emplace(".initializeStackPointer", TokenProcessor :: initSPStatic);
-    definitionKeywords.emplace(".INIT_STACK_POINTER", TokenProcessor :: initSPStatic);
-    definitionKeywords.emplace(".INITIALIZE_STACK_POINTER", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".initSP", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".INIT_SP", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".initStackPointer", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".initializeStackPointer", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".INIT_STACK_POINTER", TokenProcessor :: initSPStatic);
+    sudoOpKeywords.emplace(".INITIALIZE_STACK_POINTER", TokenProcessor :: initSPStatic);
 
     InstructionLoader :: initializeLookups(opCodes, instructionFormats, variables);
 }
@@ -60,8 +60,8 @@ bool TokenProcessor :: processLine(vector<string> tokens){
     if(tokens.size()<1){return false;}
     string first = tokens.at(0);
     if(regex_match(first, sudoOp_regex)){
-        if(definitionKeywords.find(first) == definitionKeywords.end()){return false;}
-        return definitionKeywords.at(first)(tokens, this);
+        if(sudoOpKeywords.find(first) == sudoOpKeywords.end()){return false;}
+        return sudoOpKeywords.at(first)(tokens, this);
     }
     if(regex_match(first, instruction_regex)){
         if(opCodes.find(first) == opCodes.end()){return false;}

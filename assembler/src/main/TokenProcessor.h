@@ -45,7 +45,7 @@ class TokenProcessor{
         unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>> instructionFormats = 
             unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>>();
 
-        unordered_map<string, function<bool(vector<string>, TokenProcessor*)>> definitionKeywords =
+        unordered_map<string, function<bool(vector<string>, TokenProcessor*)>> sudoOpKeywords =
             unordered_map<string, function<bool(vector<string>, TokenProcessor*)>>(); 
 
         bool processLine(vector<string> tokens);

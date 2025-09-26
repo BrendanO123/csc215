@@ -66,7 +66,7 @@ namespace pushableBitSequenceTemplates{
         pushableBitSequenceTemplate(getIntRP, getStringRP, regex("$a")),
         pushableBitSequenceTemplate(getIntReg, getStringReg, regex("[rR]?[a-eA-EhHlLmM]")),
         pushableBitSequenceTemplate(getIntByte, getStringByte, regex("-?[0-9]+")),
-        pushableBitSequenceTemplate(getIntBP, getStringBP, regex("[rR][0-9]+"))
+        pushableBitSequenceTemplate(getIntBP, getStringBP, regex("(([rR][0-9]+)|(-?[0-9]+.[0-9]+))"))
     };
 
     pushableBitSequence tryGetLiteral(string token);

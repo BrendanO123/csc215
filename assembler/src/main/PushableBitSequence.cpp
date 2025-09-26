@@ -2,6 +2,9 @@
 
 using namespace std;
 
+regex memoryAddressRegex = regex("[rR][0-9]+");
+regex doubleRegex = regex("-?[0-9]+.[0-9]+");
+
 pushableBitSequence pushableBitSequenceTemplates :: getIntBool(int value){return pushableBitSequence(1, (unsigned char)value);}
 pushableBitSequence pushableBitSequenceTemplates :: getIntRP(int value){return pushableBitSequence(2, (unsigned char)value);}
 pushableBitSequence pushableBitSequenceTemplates :: getIntReg(int value){return pushableBitSequence(3, (unsigned char)value);}
@@ -38,9 +41,20 @@ pushableBitSequence pushableBitSequenceTemplates :: getStringReg(string token){
 }
 pushableBitSequence pushableBitSequenceTemplates :: getStringByte(string token){return pushableBitSequence(8, (unsigned char)stoi(token, nullptr));}
 pushableBitSequence pushableBitSequenceTemplates :: getStringBP(string token){
-    int value = stoi(token.substr(1), nullptr);
-    auto e = pushableBitSequence(8, (unsigned char)value);
-    e.second.emplace((unsigned char)(value>>8));
+    if(regex_match(token, memoryAddressRegex)){
+        int value = stoi(token.substr(1), nullptr);
+        auto e = pushableBitSequence(8, (unsigned char)value);
+        e.second.emplace((unsigned char)(value>>8));
+        return e;
+    }
+    if(regex_match(token, doubleRegex)){
+        float value = stof(token.substr(0), nullptr);
+        int numericValue = int(value * 256 + 0.5f);
+        auto e = pushableBitSequence(8, (unsigned char)numericValue);
+        e.second.emplace((unsigned char)(numericValue>>8));
+        return e;
+    }
+    auto e = pushableBitSequence(-1, 0);
     return e;
 }
 
