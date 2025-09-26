@@ -56,9 +56,10 @@ TokenProcessor :: TokenProcessor(){
     InstructionLoader :: initializeLookups(opCodes, instructionFormats, variables);
 }
 
-bool TokenProcessor :: processLineHelper(vector<string> tokens){
+bool TokenProcessor :: processLine(vector<string> tokens){
     if(tokens.size()<1){return false;}
     string first = tokens.at(0);
+    int index = data.getIndex();
 
     // handle pseudo instructions
     if(regex_match(first, sudoOp_regex)){
@@ -128,9 +129,8 @@ bool TokenProcessor :: processLineHelper(vector<string> tokens){
 
             // if the next token is still not resolved and looks like a variable, assumed to be a unresolved variable and push
             if(regex_match(tokens.at(tokenIndex), variable_regex)){
-                missingVars.emplace(data.getPosition().first, tokens, tokens.at(tokenIndex));
+                missingVars.emplace(index, tokens, tokens.at(tokenIndex));
                 data.push(e.intInitializer(0));
-                return true;
             }
             else{
                 // finally, if it doesn't look like a variable, push empty data and return an error on this line
@@ -139,8 +139,6 @@ bool TokenProcessor :: processLineHelper(vector<string> tokens){
             }
             tokenIndex++;
         }
-
-        data.fillByte();
         return true;
     }
 
@@ -150,9 +148,10 @@ bool TokenProcessor :: processLineHelper(vector<string> tokens){
     data.push(e);
     return true;
 }
-inline bool TokenProcessor :: processLine(vector<string> tokens, int index){
+inline bool TokenProcessor :: processLineWrapper(vector<string> tokens, int index){
     if(index != -1){data.setPosition(index, 0);}
-    bool result = processLineHelper(tokens);
+    bool result = processLine(tokens);
+    data.fillByte();
     if(index != -1){data.jumpToNewDataPos();}
     return result;
 }
@@ -163,7 +162,7 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
     while(tokens.size() > 0){
         line = tokens.front();
         tokens.pop();
-        if(!processLine(line)){
+        if(!processLineWrapper(line)){
             cerr << "Errors detected on line: ";
             for(string token : line){cerr << token << ' ';}
             cerr << endl;
@@ -183,7 +182,7 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
             continue;
         }
         else{
-            processLine(e.lineTokens, e.index);
+            processLineWrapper(e.lineTokens, e.index);
             staleCounter = 0;
         }
     }

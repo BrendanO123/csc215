@@ -39,8 +39,8 @@ class TokenProcessor{
         unordered_map<string, function<bool(vector<string>, TokenProcessor*)>> sudoOpKeywords =
             unordered_map<string, function<bool(vector<string>, TokenProcessor*)>>(); 
 
-        inline bool processLine(vector<string> tokens, int index = -1);
-        bool processLineHelper(vector<string> tokens);
+        inline bool processLineWrapper(vector<string> tokens, int index = -1);
+        bool processLine(vector<string> tokens);
 
         bool define(vector<string> tokens);
         bool positionDef(vector<string> tokens);
