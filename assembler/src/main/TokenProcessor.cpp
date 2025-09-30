@@ -36,17 +36,6 @@ TokenProcessor :: TokenProcessor(){
     sudoOpKeywords.emplace(".function", TokenProcessor :: positionDefStatic);
     sudoOpKeywords.emplace(".FUNCTION", TokenProcessor :: positionDefStatic);
 
-    sudoOpKeywords.emplace(".relativeJump", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".relJump", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".relJmp", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".RELATIVE_JUMP", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".REL_JUMP", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".REL_JMP", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".offsetJump", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".offJmp", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".OFFSET_JUMP", TokenProcessor :: relJumpStatic);
-    sudoOpKeywords.emplace(".OFF_JMP", TokenProcessor :: relJumpStatic);
-
     sudoOpKeywords.emplace(".initSP", TokenProcessor :: initSPStatic);
     sudoOpKeywords.emplace(".INIT_SP", TokenProcessor :: initSPStatic);
     sudoOpKeywords.emplace(".initStackPointer", TokenProcessor :: initSPStatic);
@@ -336,55 +325,4 @@ bool TokenProcessor :: initSP(){
     data.push(SPI.second);
 
     return true;
-}
-
-bool TokenProcessor :: relJump(vector<string> tokens){
-    if(tokens.size() < 4){return false;}
-    // first non-pseudo token must be a valid jmp or call instruction
-    if(
-        !regex_match(tokens.at(1), instruction_regex) || 
-        opCodes.find(tokens.at(1)) == opCodes.end() ||
-        instructionFormats.find(tokens.at(1)) == instructionFormats.end()
-    ){return false;}
-
-    // get opcode
-    vector<pushableBitSequence> opCodPieces = opCodes.at(tokens.at(1));
-    if(opCodPieces.size()>1){return false;}
-    data.push(opCodPieces.at(0));
-
-    auto format = instructionFormats.at(tokens.at(1));
-    if(format.at(1) != pushableBitSequenceTemplates :: BYTE_PAIR){return false;}
-    int offset = parseInt(tokens.at(3));
-
-    // get memory address and offset and push full BytePair
-    if(variables.find(tokens.at(2)) != variables.end()){
-        data.push(
-            pushableBitSequenceTemplates :: getIntBP(variables.at(tokens.at(2)).data + offset)
-        );
-        return true;
-    }
-    pushableBitSequenceTemplate BP = pushableBitSequenceTemplates :: pushableBitSequenceTemplates
-        [pushableBitSequenceTemplates :: BYTE_PAIR];
-    if(BP.isType(tokens.at(2))){
-        try{
-            data.push(
-                pushableBitSequenceTemplates :: getIntBP(parseInt(tokens.at(2).substr(1)) + offset)
-            );
-            return true;
-        }
-        catch(invalid_argument e){
-            cerr << "non-numerical token parsing attempted: " << e.what() << endl;
-        }
-    }
-    if(regex_match(tokens.at(2), variable_regex)){
-        missingVars.emplace(
-            data.getPosition().first,
-            tokens,
-            tokens.at(2)
-        );
-        data.push(BP.intInitializer(0));
-        return true;
-    }
-    data.push(BP.intInitializer(0));
-    return false;
 }
