@@ -2,25 +2,42 @@
 
 #include <regex>
 #include <optional>
+#include <sstream>
 
 using namespace std;
 
 struct pushableBitSequence{
-    const unsigned char length;
+    const char length;
     unsigned char data;
     optional<unsigned char> second;
 
-    pushableBitSequence(int len, int num) : 
-        length((unsigned char)len), data((unsigned char)num){}
+    pushableBitSequence(int len, int num, bool hasSecond = false) : 
+        length((char)len), data((unsigned char)num){if(hasSecond){second.emplace(num >> 8);}}
+    
+    pushableBitSequence(char len, int num, bool hasSecond = false) : 
+        length(len), data((char)num){if(hasSecond){second.emplace(num >> 8);}}
 
-    pushableBitSequence(char len, char num) : 
-        length((unsigned char)len), data((unsigned char)num){}
+    pushableBitSequence(char len, unsigned char num, bool hasSecond = false) : 
+        length(len), data(num){if(hasSecond){second.emplace(0);}}
 
-    pushableBitSequence(unsigned char len, unsigned char num) : 
-        length(len), data(num){}
+    pushableBitSequence(int len, unsigned char num, bool hasSecond = false) : 
+        length((char)len), data(num){if(hasSecond){second.emplace(0);}}
 
-    pushableBitSequence(int len, unsigned char num) : 
-        length((unsigned char)len), data(num){}
+    int getValue() const{return int(data) + (second.has_value() ? int(second.value()) << 8 : 0);}
+
+    bool operator==(const pushableBitSequence other) const{
+        return other.length == length &&
+            other.data == data &&
+            other.second.has_value() == second.has_value() &&
+                (second.has_value() ? other.second.value() == second.value() : true);
+    }
+    string to_string(){
+        stringstream ss;
+        ss << "Length: " << int(length) << "\nData: " << (unsigned int)(data) << "\nSecond: ";
+        if(second.has_value()){ss << (unsigned int)(second.value()) << endl;}
+        else{ss << "EMPTY" << endl;}
+        return ss.str();
+    }
 };
 struct pushableBitSequenceTemplate{
     const regex matcher;
