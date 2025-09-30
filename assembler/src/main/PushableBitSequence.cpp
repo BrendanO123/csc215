@@ -15,7 +15,18 @@ pushableBitSequence pushableBitSequenceTemplates :: getIntBP(int value){
     return e;
 }
 
-pushableBitSequence pushableBitSequenceTemplates :: getStringBool(string token){return pushableBitSequence(-1, 0);}
+pushableBitSequence pushableBitSequenceTemplates :: getStringBool(string token){
+    switch(token.at(0)){
+        case 't':
+        case 'T':
+            return pushableBitSequence(1, 1);
+        case 'f':
+        case 'F':
+            return pushableBitSequence(1, 0);
+        default:
+            return pushableBitSequence(-1, 0);
+    }
+}
 pushableBitSequence pushableBitSequenceTemplates :: getStringRP(string token){return pushableBitSequence(-1, 0);}
 pushableBitSequence pushableBitSequenceTemplates :: getStringReg(string token){
     switch(tolower(token.at(token.size()-1))){
@@ -49,7 +60,7 @@ pushableBitSequence pushableBitSequenceTemplates :: getStringBP(string token){
     }
     if(regex_match(token, doubleRegex)){
         float value = stof(token.substr(0), nullptr);
-        int numericValue = int(value * 256 + 0.5f);
+        int numericValue = int(value * 256 + (value >= 0 ? 0.5f : -0.5f));
         auto e = pushableBitSequence(8, (unsigned char)numericValue);
         e.second.emplace((unsigned char)(numericValue>>8));
         return e;
@@ -62,7 +73,7 @@ pushableBitSequence pushableBitSequenceTemplates :: tryGetLiteral(string token){
         for(pushableBitSequenceTemplate e : pushableBitSequenceTemplates :: pushableBitSequenceTemplates){
             if(e.isType(token)){
                 pushableBitSequence test = e.stringInitializer(token);
-                if(test.length < 0){continue;}
+                if(test.length <= 0){continue;}
                 return test;
             }
         }

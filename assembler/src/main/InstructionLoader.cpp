@@ -10,6 +10,15 @@ void InstructionLoader :: initializeLookups(
     unordered_map<string, vector<pushableBitSequenceTemplates :: pushableBitSequenceTemplateTypes>>& instructionFormats, 
     unordered_map<string, pushableBitSequence>& variables
 ){
+
+    variables.emplace("true", pushableBitSequence(1, 1));
+    variables.emplace("True", pushableBitSequence(1, 1));
+    variables.emplace("TRUE", pushableBitSequence(1, 1));
+
+    variables.emplace("false", pushableBitSequence(1, 0));
+    variables.emplace("False", pushableBitSequence(1, 0));
+    variables.emplace("FALSE", pushableBitSequence(1, 0));
+
     variables.emplace("bc", pushableBitSequence(2, 0));
     variables.emplace("BC", pushableBitSequence(2, 0));
     variables.emplace("rp_bc", pushableBitSequence(2, 0));
@@ -69,12 +78,12 @@ void InstructionLoader :: initializeLookups(
 
         name = tokens.at(0);
         opCodes.emplace(name, vector<pushableBitSequence>());
-        opCodes.at(name).push_back(pushableBitSequence(tokens.at(1).size(), stoi(tokens.at(1), nullptr, 2))); // add in initial opcode start
+        opCodes.at(name).push_back(pushableBitSequence(int(tokens.at(1).size()), stoi(tokens.at(1), nullptr, 2))); // add in initial opcode start
         format.push_back(pushableBitSequenceTemplates :: OP_CODE);
 
         for(int i = 2; i < tokens.size(); i++){
             if(regex_match(tokens.at(i), opCode_regex)){
-                opCodes.at(name).push_back(pushableBitSequence(tokens.at(i).size(), stoi(tokens.at(i), nullptr, 2)));
+                opCodes.at(name).push_back(pushableBitSequence(int(tokens.at(i).size()), stoi(tokens.at(i), nullptr, 2)));
                 format.push_back(pushableBitSequenceTemplates :: OP_CODE);
             }
             else if(tokens.at(i) == "bool"){format.push_back(pushableBitSequenceTemplates :: BOOL);}
