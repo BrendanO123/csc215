@@ -6,10 +6,11 @@
 
 using namespace std;
 
-const regex TokenProcessor :: variable_regex = regex("[a-zA-Z_][a-zA-Z0-9-_\\.]*");
+const regex TokenProcessor :: variable_regex = regex("[a-zA-Z_][a-zA-Z0-9_\\.]*");
 const regex TokenProcessor :: instruction_regex = regex("[a-zA-Z]+");
-const regex TokenProcessor :: sudoOp_regex = regex("\\.[a-zA-Z-_]+");
-const regex TokenProcessor :: offset_regex = regex("-?[0-9]+");
+const regex TokenProcessor :: sudoOp_regex = regex("\\.[a-zA-Z_]+");
+const regex TokenProcessor :: parameter_regex = regex("(-?[0-9]+)|([rR][0-9]+)|(-?[0-9]+.[0-9]+)|([a-zA-Z_][a-zA-Z0-9_\\.]*)");
+const regex TokenProcessor :: operator_regex = regex("[-+*/&<>][<>/]?");
 const pair<pushableBitSequence, pushableBitSequence> TokenProcessor :: SPI = pair<pushableBitSequence, pushableBitSequence>(
     pushableBitSequence(8, 0041),
     pushableBitSequence(8, 0371)
@@ -94,12 +95,7 @@ bool TokenProcessor :: processLine(vector<string> tokens){
             if(variables.find(tokens.at(tokenIndex)) != variables.end()){
                 data.push(
                     pushableBitSequenceTemplates :: pushableBitSequenceTemplates[format.at(formatIndex)].intInitializer(
-                        variables.at(tokens.at(tokenIndex)).data + 
-                        (
-                            variables.at(tokens.at(tokenIndex)).second.has_value() ? 
-                            (int(variables.at(tokens.at(tokenIndex)).second.value()) << 8) : 
-                            0
-                        )
+                        variables.at(tokens.at(tokenIndex)).getValue()
                     )
                 );
                 tokenIndex++;
@@ -143,8 +139,8 @@ bool TokenProcessor :: processLine(vector<string> tokens){
     }
 
     // handle literal data
-    pushableBitSequence e = pushableBitSequenceTemplates :: tryGetLiteral(first);
-    if(e.length < 0){return false;}
+    pushableBitSequence e = tryGetParameter(first);
+    if(e.length <= 0){return false;}
     data.push(e);
     return true;
 }
@@ -199,6 +195,101 @@ BitStream TokenProcessor :: processTokens(queue<vector<string>> tokens){
     return data;
 }
 
+pushableBitSequence TokenProcessor :: tryGetParameter(vector<string> tokens, int& i){
+    int index = i; i++;
+    string main = tokens.at(index);
+    if(index + 2 < tokens.size()){
+        if(regex_match(tokens.at(index+1), operator_regex) && regex_match(tokens.at(index+2), parameter_regex)){
+            auto first = tryGetParameter(main);
+            auto second = tryGetParameter(tokens.at(index+2));
+
+            if(first.length <= 0){return pushableBitSequence(-1, 0);}
+            if(second.length <= 0){return first;}
+
+            int a = first.getValue();
+            int b = second.getValue();
+            if(main.at(0) == '-'){a = int(char(a));}
+            if(tokens.at(index+2).at(0) == '-'){b = int(char(b));}
+
+            i += 2;
+            if(tokens.at(index+1).length() != 1){
+                if(tokens.at(index+1) == "//"){
+                    return pushableBitSequence(
+                        first.length,
+                        a / b, 
+                        first.second.has_value()
+                    );
+                }
+                if(tokens.at(index+1) == "<<"){
+                    return pushableBitSequence(
+                        first.length,
+                        a << b,
+                        first.second.has_value()
+                    );
+                }
+                if(tokens.at(index+1) == ">>"){
+                    return pushableBitSequence(
+                        first.length,
+                        a >> b,
+                        first.second.has_value()
+                    );
+                }
+                i -= 2; return first;
+            }
+            else{
+                switch(tokens.at(index+1).at(0)){
+                    case '+':
+                        return pushableBitSequence(
+                            first.length,
+                            a + b,
+                            first.second.has_value()
+                        );
+                    case '-':
+                        return pushableBitSequence(
+                            first.length, 
+                            a - b,
+                            first.second.has_value()
+                        );
+                    case '*':
+                        return pushableBitSequence(
+                            first.length, 
+                            a * b,
+                            first.second.has_value()
+                        );
+                    case '&':
+                        return pushableBitSequence(
+                            min(first.length, second.length), 
+                            a & b,
+                            first.second.has_value() && second.second.has_value()
+                        );
+                    case '/':
+                        return pushableBitSequence(
+                            8,
+                            int((a / float(b)) * 256),
+                            true
+                        );
+                    
+                    default:
+                        i -= 2;
+                        return first;
+                }
+            }
+        }
+    }
+
+    auto first = tryGetParameter(main);
+    return first;
+}
+
+pushableBitSequence TokenProcessor :: tryGetParameter(string token){
+    auto e = pushableBitSequenceTemplates :: tryGetLiteral(token);
+    if(e.length > 0){return e;}
+    if(variables.find(token) != variables.end()){
+        return variables.at(token);
+    }
+    return pushableBitSequence(-1, 0);
+}
+
 bool TokenProcessor :: define(vector<string> tokens){
     if(tokens.size() < 3){return false;} // must have all the pieces of the def
     if(!regex_match(tokens.at(1), variable_regex)){return false;} // must be a valid var name
@@ -210,8 +301,9 @@ bool TokenProcessor :: define(vector<string> tokens){
         return true;
     }
 
-    pushableBitSequence e = pushableBitSequenceTemplates :: tryGetLiteral(token);
-    if(e.length < 0){return false;}
+    int index = 2;
+    pushableBitSequence e = tryGetParameter(tokens, index);
+    if(e.length <= 0){return false;}
     variables.emplace(tokens.at(1), e);
     return true;
 }
@@ -227,6 +319,22 @@ bool TokenProcessor :: positionDef(vector<string> tokens){
         tokens.at(1), 
         pushableBitSequenceTemplates :: getIntBP(index)
     );
+    return true;
+}
+
+bool TokenProcessor :: initSP(){
+    if(variables.find("LAST_ADDRESS") == variables.end()){
+        variables.emplace(
+            "LAST_ADDRESS",
+            pushableBitSequenceTemplates :: pushableBitSequenceTemplates[
+                pushableBitSequenceTemplates :: BYTE_PAIR
+            ].intInitializer(estimatedRAMSize)
+        );
+    }
+    data.push(SPI.first);
+    data.push(variables.at("LAST_ADDRESS"));
+    data.push(SPI.second);
+
     return true;
 }
 
@@ -246,7 +354,6 @@ bool TokenProcessor :: relJump(vector<string> tokens){
 
     auto format = instructionFormats.at(tokens.at(1));
     if(format.at(1) != pushableBitSequenceTemplates :: BYTE_PAIR){return false;}
-    if(!regex_match(tokens.at(3), offset_regex)){return false;}
     int offset = parseInt(tokens.at(3));
 
     // get memory address and offset and push full BytePair
@@ -280,20 +387,4 @@ bool TokenProcessor :: relJump(vector<string> tokens){
     }
     data.push(BP.intInitializer(0));
     return false;
-}
-
-bool TokenProcessor :: initSP(){
-    if(variables.find("LAST_ADDRESS") == variables.end()){
-        variables.emplace(
-            "LAST_ADDRESS",
-            pushableBitSequenceTemplates :: pushableBitSequenceTemplates[
-                pushableBitSequenceTemplates :: BYTE_PAIR
-            ].intInitializer(estimatedRAMSize)
-        );
-    }
-    data.push(SPI.first);
-    data.push(variables.at("LAST_ADDRESS"));
-    data.push(SPI.second);
-
-    return true;
 }

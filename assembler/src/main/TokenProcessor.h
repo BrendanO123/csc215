@@ -26,7 +26,8 @@ class TokenProcessor{
         static const regex variable_regex;
         static const regex sudoOp_regex;
         static const regex instruction_regex;
-        static const regex offset_regex;
+        static const regex operator_regex;
+        static const regex parameter_regex;
 
         BitStream data;
         queue<missingVar> missingVars = queue<missingVar>();
@@ -56,6 +57,8 @@ class TokenProcessor{
         static bool relJumpStatic(vector<string> tokens, TokenProcessor* obj){return obj->relJump(tokens);}
         static bool initSPStatic(vector<string> tokens, TokenProcessor* obj){return obj->initSP();}
 
+        pushableBitSequence tryGetParameter(vector<string> tokens, int& index);
+        pushableBitSequence tryGetParameter(string token);
         inline int parseInt(string num){return stoi(num, nullptr);}
         unsigned char parseReg(string reg){
             char c = reg.at(reg.length()-1);

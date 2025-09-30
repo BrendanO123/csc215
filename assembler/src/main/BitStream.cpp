@@ -3,7 +3,7 @@
 using namespace std;
 
 bool BitStream :: push(pushableBitSequence e){
-    if(e.length < 0){return false;}
+    if(e.length <= 0){return false;}
     if(offset == 0 && !correctingOldData){
         bytes.push_back(e.data << (8 - e.length));
     }
