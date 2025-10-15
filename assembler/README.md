@@ -31,6 +31,10 @@ The assembler breaks up your assembly code into each line, and each line must re
     - *Regex*: `[rR][0-9]+`
     - Regular Expression Explanation: matches one or more decimal digit without separators, prefixed by either `r` or `R` to differentiate it from the byte literal.
     - Token Explanation: a decimal number representing a memory address in the RAM memory. This was recently changed to allow addressing RAM registers past register 255 and takes 2 bytes to store.
+ - **Doubles**: 
+    - *Regex*: `-?[0-9]+.[0-9]+`
+    - Regular Expression Explanation: matches a positive or negative decimal number at least one digit both before and after the decimal place.
+    - Token Explanation: a fixed precision number that allocates its one high byte to storing an integer number between 0 and 255 and its one low byte to storing a fractional portion of a number between $1/256$ and $1-1/256$. This can be useful for programs, such as the `multDouble` example program, that expect fractional numbers in this format. It is worth noting that the precision of these numbers are still very low, so rounding errors will be frequent when using them. 
  - **Operations**:
     - *Regex*: `[a-zA-Z]+`
     - Regular Expression Explanation: matches an operation name starting consisting of only capitalized or lowercase letters. This regular expression also catches variable names and undefined operations, so the operation name must also exist within the lookup table generated from the `opcodes.txt` file. These can be either all uppercase or all lowercase but cannot be mixed.
