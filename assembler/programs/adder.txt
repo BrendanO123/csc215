@@ -1,5 +1,0 @@
-MVI A 10
-MVI B 6
-ADD B
-STA r128
-HLT
