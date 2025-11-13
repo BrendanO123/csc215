@@ -41,10 +41,58 @@ START1:
         CALL CCRLF
         CALL PRINTDE    ; PARSE AND PRINT
         CALL CCRLF
+        CALL XCHGBD
 
+        CALL SPMSG
+        DB 'A * B, A + B, A - B, A << B, A >> B, AUX-PUSH-POP A, A /2 B',CR,LF,0
+
+        PUSH D
         CALL MULT2B
         CALL PRINTDE
         CALL CCRLF
+        POP D
+
+        PUSH D
+        XCHG
+        DAD B
+        XCHG
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
+        PUSH D
+        CALL BINSUB
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
+        PUSH D
+        MOV A,C
+        CALL LSHIFT
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
+        PUSH D
+        MOV A,C
+        CALL RSHIFT
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
+        PUSH D
+        XCHG
+        CALL PUSHPARAN
+        CALL POPPARAN
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
+        PUSH D
+        CALL INTDIV
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
 
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
@@ -373,10 +421,12 @@ NEGBC:  MOV     A,C; BC = -BC
         RET     ; BC = !BC + 1 = -BC
 
 BINSUB: PUSH H; DE -= BC
+        PUSH B
         CALL    NEGBC
         XCHG
         DAD B
         XCHG
+        POP B
         POP H
         RET
 
@@ -407,8 +457,19 @@ RLOOP:  STC     ; CLEAR CARRY BIT
         POP     B 
         RET
 
-DIV:    PUSH    H; DE /= BC
-        PUSH    B
+MOD:
+        PUSH H ; DE %= BC
+        CALL DOUBLEDIV
+        XCHG
+        POP H
+        RET
+INTDIV:
+        PUSH H ; DE //= BC
+        CALL DOUBLEDIV
+        POP H
+        RET
+DOUBLEDIV:
+        PUSH    B; DE = DE // BC, HL = DE % BC
 
 ; SAVE BC_0 AND DE_0 FOR LATER IN FUNCTION
         PUSH    D
@@ -463,7 +524,8 @@ DSUB:   CALL    NEGBC; BC *= -1
         DAD     D
         XTHL
 
-DIVCONT:CALL    XCHGBD; BC >>= 1
+DIVCONT:
+        CALL    XCHGBD; BC >>= 1
         MVI     A,1
         CALL    RSHIFT
         CALL    XCHGBD
@@ -478,7 +540,6 @@ DIVCONT:CALL    XCHGBD; BC >>= 1
 
         POP     D; DE = SP -> SUM
         POP     B
-        POP     H
         RET
 
 
