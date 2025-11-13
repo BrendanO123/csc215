@@ -218,6 +218,28 @@ RSLOOP:  STC     ; CLEAR CARRY BIT
         POP     B 
         RET
 
+CLZ: ; A = CLZ(BC) (BREAKS IF ZERO)
+        PUSH B
+; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
+        MOV     A,B
+        ORA     A; MS BYTE == 0, USE LS BYTE INSTEAD
+        JNZ     CLZLSHIFT
+        MOV     A,C
+        MVI     C,8
+        JMP     CLZLSHIFTLOOP
+
+; C TURNS INTO countLeadingZeros(BC)
+CLZLSHIFT:
+        MVI     C,0
+CLZLSHIFTLOOP:
+        RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
+        JC      CLZRET
+        INR     C
+        JMP     CLZLSHIFTLOOP
+CLZRET: MOV     A,C
+        POP B
+        RET
+
 RECTMOD:
         PUSH B
         CALL RECTSIGN
@@ -281,25 +303,9 @@ DIVMOD:
         PUSH    D
         PUSH    B
 
-; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
-        MOV     A,B
-        ORA     A; MS BYTE == 0, USE LS BYTE INSTEAD
-        JNZ     DIVLSHIFT
-        MOV     A,C
-        MVI     C,8
-        JMP     DIVLSHIFTLOOP
-
-; C TURNS INTO countLeadingZeros(BC_0)
-DIVLSHIFT:
-        MVI     C,0
-DIVLSHIFTLOOP:
-        RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
-        JC      DIVNEXT
-        INR     C
-        JMP     DIVLSHIFTLOOP
-
-; LEFT SHIFT DIVISOR AS MUCH AS POSSIBLE WITHOUT TRUNCATION
-DIVNEXT:  MOV     A,C; A = CLZ(BC_0)
+; get countLeadingZeros(BC_0)
+        CALL CLZ ; A = CLZ(BC_0)
+        MOV     C,A
         POP     D; DE = BC_0
         CALL    LSHIFT; DE = BC_0 << (CLZ(BC_0))
         MOV     A,C
