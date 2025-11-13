@@ -29,10 +29,20 @@ START1:
         CALL CCRLF
         CALL PRINTDE    ; PARSE AND PRINT
         CALL CCRLF
-
-        MVI A,7
-        CALL MULTBYT
         CALL XCHGBD
+
+        CALL SPMSG
+        DB 'PLEASE INPUT ANOTHER NUMBER.',CR,LF,0
+
+        CALL CIMSG
+        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
+
+        CALL PARSEINT
+        CALL CCRLF
+        CALL PRINTDE    ; PARSE AND PRINT
+        CALL CCRLF
+
+        CALL MULT2B
         CALL PRINTDE
         CALL CCRLF
 
