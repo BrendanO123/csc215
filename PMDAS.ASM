@@ -286,6 +286,8 @@ DIVMOD:
         ORA     A; MS BYTE == 0, USE LS BYTE INSTEAD
         JNZ     DIVLSHIFT
         MOV     A,C
+        MVI     C,8
+        JMP     DIVLSHIFTLOOP
 
 ; C TURNS INTO countLeadingZeros(BC_0)
 DIVLSHIFT:
@@ -352,11 +354,52 @@ DIVCONT:
 
 ;---------------------------------------------------
 
+PRINTDE: ; PRINTS A SIGNED 16-BIT INTEGER IN DE
+        ; Save registers
+        PUSH PSW
+        PUSH B
+        PUSH D
+        PUSH H
+
+        LHLD SP2 ; Save AUX SP
+        PUSH H
+
+        MVI A,0 ; Zero Terminate
+        CALL AUXPUSH8
+        LXI B,10
+
+        MOV A,D ; Rectify sign
+        RAL
+        JNC PRINTINTLOOP
+        MVI A,'-'
+        CALL CO
+        CALL NEGATEDE
+PRINTINTLOOP:
+        CALL DIVMOD ; get digit and divide
+        MVI A,'0'
+        ADD L
+        CALL AUXPUSH8 ; push digit to end of message
+        MOV A,D
+        ORA E
+        JNZ PRINTINTLOOP ; loop
+
+        LHLD SP2 ; print message
+        CALL COMSG
+
+        POP H ; restore AUX SP
+        SHLD SP2
+
+        POP H ; restore registers
+        POP D
+        POP B
+        POP PSW
+        RET
+
 ; INPUT (CHAR POINTER) GOES IN HL, RESULT GOES IN DE
 PARSEINT:
         PUSH B
         LXI D,00H ; CLEAR DE REGISTERS IN PREPARATION
-        LXI B,00H ; SAME WITH BC
+        LXI B,10 ; SAME WITH BC
         MOV A,M
         CPI '-'
         JNZ NONNEG
@@ -376,37 +419,7 @@ PARSEINT:
                 CPI '9'+1
                 JNC PLOOPEND
 
-                MULTBYTEN: ; TO DO THIS WE SHIFT THE BYTES LEFT 3 TIMES, THEN ADD THE ORIGINAL VALUES TWICE
-                        MOV B,D ; BACK UP THE PRE-LEFT-SHIFT TOTAL IN BC
-                        MOV C,E
-                        ANI 00H ; RESET CARRY/CLEAR A. WE ONLY NEED TO DO THIS ONCE SINCE RAL-ING D SHOULD NOT PUT ANYTHING 
-                                ; OTHER THAN ZERO IN THE CARRY. CONVERSELY WE COULD JC AFTER THE RAL TO DETECT AN OVERFLOW
-
-                        MOV A,E
-                        RAL
-                        MOV E,A
-                        MOV A,D
-                        RAL
-                        MOV D,A
-
-                        MOV A,E
-                        RAL
-                        MOV E,A
-                        MOV A,D
-                        RAL
-                        MOV D,A
-
-                        MOV A,E
-                        RAL
-                        MOV E,A
-                        MOV A,D
-                        RAL
-                        MOV D,A
-
-                        XCHG    ; SO WE CAN DAD
-                        DAD B   ; DAD ORIGINAL VALUE
-                        DAD B
-                        XCHG
+                CALL MULT16
 
                 MOV A,M ; GET CHARACTER AGAIN, SINCE WE CLOBBERED THE REGISTER
                 SUI '0'
@@ -422,106 +435,9 @@ PARSEINT:
         PLOOPEND:
         LDA FLAG        ; CHECK IF NEGATIVE
         ANI 01H
-        JZ POPREGSRET
-        JMP NEGATIVE
+        CNZ NEGATEDE
         POPREGSRET:
         POP B
-        RET
-        NEGATIVE:       ; PERFORM DOUBLE SUBTRACTION
-                        ANI 00H
-                        SUB E
-                        MOV E,A
-                        MVI A,0 ; MVI INSTEAD OF SUB A BECAUSE WE DONT WANT TO TOUCH STATUS BITS
-                        SBB D
-                        MOV D,A
-                        JMP POPREGSRET
-
-; PRINTS A SIGNED 16-BIT INTEGER IN DE
-PRINTDE:
-        ; Save registers
-        PUSH PSW
-        PUSH B
-        PUSH D
-        PUSH H
-
-        MOV A,D
-        ORA E
-        JZ  PRINTZERO
-
-        ; Check sign
-        MOV A,D
-        ANI 80H
-        JZ  POSITIVEDONE
-
-        ; Negative: negate DE = -DE and print '-'
-        MOV A,E
-        CMA
-        MOV E,A
-        MOV A,D
-        CMA
-        MOV D,A
-        INX D
-        MVI A,'-'
-        CALL CO
-
-POSITIVEDONE:
-        MVI B,0             ; digit count = 0
-
-CONVERT:
-        MOV A,D
-        ORA E
-        JZ  POPPRINT       ; stop when quotient = 0
-
-        MVI H,0
-        MVI L,0
-
-DIVLOOP:
-        MOV A,D
-        ORA A
-        JNZ SUB10
-        MOV A,E
-        CPI 10
-        JC  DIVDONE
-SUB10:
-        MOV A,E
-        SUI 10
-        MOV E,A
-        JC  DECD
-        JMP INCQL
-DECD:
-        DCR D
-INCQL:
-        INX H
-        JMP DIVLOOP
-
-DIVDONE:
-        MOV A,E
-        ADI '0'
-        PUSH PSW
-        INR B
-        MOV D,H
-        MOV E,L
-        JMP CONVERT
-
-POPPRINT:
-        MOV C,B
-PRINTLOOP:
-        POP PSW
-        CALL CO
-        DCR C
-        JNZ PRINTLOOP
-        JMP DONE
-
-PRINTZERO:
-        MVI A,'0'
-        CALL CO
-
-DONE:
-        ; Restore registers
-        POP H
-        POP D
-        POP B
-        POP PSW
         RET
 
 ; CONSOLE CHARACTER INTO REGISTER A MASKED TO 7 BITS
@@ -666,6 +582,24 @@ AUXPOP: NOP; DE = address
 
         POP     H ; RESTORE REGISTERS
         POP     B
+        RET
+
+AUXPUSH8: NOP; A = address
+        PUSH H
+        LHLD SP2
+        DCX H
+        MOV M,A
+        SHLD SP2
+        POP H
+        RET
+
+AUXPOP8: NOP; A = address
+        PUSH H
+        LHLD SP2
+        MOV A,M
+        INX H
+        SHLD SP2
+        POP H
         RET
 
         DS      128
