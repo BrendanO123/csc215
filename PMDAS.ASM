@@ -18,6 +18,8 @@ TPA     EQU     100H            ; TRANSIENT PROGRAM AREA
 
 START:  LXI     SP,STAK         ; SET UP USER'S STACK
 
+;---------------------------------------------------
+
 START1:
         CALL SPMSG
         DB 'HELLO THERE! PLEASE INPUT A NUMBER.',CR,LF,0
@@ -47,7 +49,7 @@ START1:
         DB 'A * B, A + B, A - B, A << B, A >> B, AUX-PUSH-POP A, A /2 B',CR,LF,0
 
         PUSH D
-        CALL MULT2B
+        CALL MULT16
         CALL PRINTDE
         CALL CCRLF
         POP D
@@ -61,7 +63,7 @@ START1:
         POP D
 
         PUSH D
-        CALL BINSUB
+        CALL SUB16
         CALL PRINTDE
         CALL CCRLF
         POP D
@@ -103,6 +105,250 @@ START1:
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
+
+;---------------------------------------------------
+
+XCHGBD: PUSH    D; SWAP(BC, DE)
+        PUSH    B 
+        POP     D 
+        POP     B
+        RET
+XCHGBH: PUSH    H; SWAP(BC, HL)
+        PUSH    B 
+        POP     H
+        POP     B
+        RET
+
+MULT8:
+        PUSH    D; BC = A * DE
+        PUSH    H
+        LXI     H,0 ; HL = PP
+        MVI     C,8; INIT COUNTER
+MLOOP:  RAR     ; TEST LSB OF MULTIPLIER
+        JNC     MNEXT
+        DAD     D; ADD MULTIPLICAND TO PP IF ONE
+MNEXT:  XCHG    ; LSHIFT MULTIPLICAND
+        DAD     H
+        XCHG
+        DCR     C; REPEAT FOR LOOP WHILE COUNTER IS > 0
+        JNZ     MLOOP
+
+        CALL XCHGBH
+        POP     H
+        POP     D
+        RET
+
+MULT16: 
+        PUSH    B; DE *= BC
+        PUSH    H
+        MOV     H,B; KEEP TRACK OF HIGH BYTE OF MULTIPLIER
+
+        MOV     A,C; MULT LOW BYTE OF MULTIPLIER WITH MULTIPLICAND
+        CALL    MULT8
+
+        MOV     A,H; MOVE HIGH BYTE OF MULTIPLIER TO A
+        PUSH    B; MOVE FIRST PRODUCT TO HL
+        POP     H
+        CALL    MULT8; MSB TIMES MULTIPLICAND
+
+        MOV     B,C; PRODUCT *= 256
+        MVI     C,0; SUM += PRODUCT
+        DAD     B
+
+        XCHG
+        POP     H
+        POP     B
+        RET
+
+NEGATEDE:
+        CALL XCHGBD
+        CALL NEGATEBC
+        CALL XCHGBD
+        RET
+NEGATEBC:  
+        MOV     A,C; BC = -BC
+        CMA     ; C = !C
+        MOV     C,A
+
+        MOV     A,B 
+        CMA     ; B = !B
+        MOV     B,A
+
+        INX B   ; BC++
+
+        RET     ; BC = !BC + 1 = -BC
+
+SUB16:  
+        PUSH H; DE -= BC
+        PUSH B
+        CALL    NEGATEBC
+        XCHG
+        DAD B
+        XCHG
+        POP B
+        POP H
+        RET
+
+LSHIFT: 
+        INR     A; DE <<= A
+        XCHG
+LLOOP:  DCR     A; for(int i = A+1; --i > 0;)
+        JZ      LEND
+        DAD     H
+        JMP     LLOOP
+LEND:   XCHG
+        RET
+
+RSHIFT: 
+        PUSH    B; DE >>= A
+        MOV     C,A; C = A
+RLOOP:  STC     ; CLEAR CARRY BIT
+        CMC
+        
+        MOV     A,D; RSHIFT MSBYTE
+        RAR
+        MOV     D,A
+
+        MOV     A,E; RSHIFT LSBYTE WITH CARRY IN FROM MSBYTE
+        RAR
+        MOV     E,A
+
+        DCR     C; for(int c = a; c > 0; c--)
+        JNZ     RLOOP
+        POP     B 
+        RET
+
+RECTMOD:
+        PUSH B
+        CALL RECTSIGN
+        CALL MOD0
+        POP B
+        LDA FLAG
+        RAR ; SAMPLE LSB flag bit
+        RNC
+        CALL NEGATEDE
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
+        RET
+INTDIV:
+        PUSH B
+        CALL RECTSIGN
+        CALL INTDIV0
+        POP B
+        LDA FLAG
+        RAR ; SAMPLE LSB flag bit
+        RNC
+        CALL NEGATEDE
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
+        RET
+RECTSIGN:
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
+
+        MOV A,D ; TEST DE SIGN BIT
+        RAL
+        JNC RECTSIGNNEXT
+        LDA FLAG
+        XRI 01H
+        STA FLAG
+        CALL NEGATEDE ; FORCE POSITIVE AND UPDATE FLAG IF NEGATIVE
+RECTSIGNNEXT:
+        MOV A,B ; TEST DE SIGN BIT
+        RAL
+        RNC
+        LDA FLAG
+        XRI 01H
+        STA FLAG
+        CALL NEGATEBC
+        RET
+MOD0:
+        PUSH H ; DE %= BC
+        CALL DIVMOD
+        XCHG
+        POP H
+        RET
+INTDIV0:
+        PUSH H ; DE //= BC
+        CALL DIVMOD
+        POP H
+        RET
+
+DIVMOD:
+        PUSH    B; DE = DE // BC, HL = DE % BC
+
+; SAVE BC_0 AND DE_0 FOR LATER IN FUNCTION
+        PUSH    D
+        PUSH    B
+
+; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
+        MOV     A,B
+        ORA     A; MSBYTE == 0, USE LBYTE INSTEAD
+        JNZ     DLSHIFT
+        MOV     A,C
+
+; C TURNS INTO countLeadingZeros(BC_0)
+DLSHIFT:MVI     C,0
+DLSLOOP:RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
+        JC      DNEXT
+        INR     C
+        JMP     DLSLOOP
+
+; LEFT SHIFT DIVISOR AS MUCH AS POSSIBLE WITHOUT TRUNCATION
+DNEXT:  MOV     A,C; A = CLZ(BC_0)
+        POP     D; DE = BC_0
+        CALL    LSHIFT; DE = BC_0 << (CLZ(BC_0))
+        MOV     A,C
+        CALL    XCHGBD; BC = DE = BC_0 << (CLZ(BC_0))
+
+        POP     H; HL = DE_0
+        LXI     D,0; DE = 0
+        PUSH    D; SP->SUM = 0
+
+        LXI     D,1; DE = 1 << CLZ(BC_0)
+        CALL    LSHIFT
+                ; DE = 1 << CLZ(BC_0), BC = BC_0 << (CLZ(BC_0)), HL = DE_0, SP->0
+                ; BC = DIVISOR, HL = DIVIDEND, SP -> QUOTIENT, DE = BIT TO SET IN QUOTIENT
+
+; RSHIFT DIVISOR REPEATEDLY, SUBTRACT FROM DIVIDEND AND SET BIT IN QUOTIENT WHEN DIVISOR IS >= DIVIDEND
+DRSLOOP:MOV     A,B
+        CMP     H
+        JC      DSUB; MSBYTE OF HL > BC THEREFORE SUB
+        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>) && !(==)) THEREFORE CONTINUE
+
+        MOV     A,C ; MSYBYTES ARE EQUAL SO TEST LSBYTES
+        CMP     L
+        JC      DSUB
+        JNZ     DIVCONT; LSYBYTE OF HL < BC THEREFORE CONTINUE
+
+; HL-=BC, QUOTIENT += DE
+DSUB:   CALL    NEGATEBC; BC *= -1
+        DAD     B; HL += BC
+        CALL    NEGATEBC; BC *= -1
+
+        XTHL    ; SP -> SUM += DE; (DE = 1 << (CLZ(BC_0) - i)) 
+        DAD     D
+        XTHL
+
+DIVCONT:
+        CALL    XCHGBD; BC >>= 1
+        MVI     A,1
+        CALL    RSHIFT
+        CALL    XCHGBD
+        
+        MVI     A,1; DE >>= 1
+        CALL    RSHIFT
+
+        MVI     A,0
+        ORA     D
+        ORA     E
+        JNZ     DRSLOOP; for(int i = CLZ(BC_0); i >=0; i--)
+
+        POP     D; DE = SP -> SUM
+        POP     B
+        RET
+
+;---------------------------------------------------
 
 ; INPUT (CHAR POINTER) GOES IN HL, RESULT GOES IN DE
 PARSEINT:
@@ -364,239 +610,7 @@ GETYN:  CALL    SPMSG
 INBUF:  DS      83              ; LINE INPUT BUFFER
 FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
 
-XCHGBD: PUSH    D; SWAP(BC, DE)
-        PUSH    B 
-        POP     D 
-        POP     B
-        RET
-XCHGBH: PUSH    H; SWAP(BC, HL)
-        PUSH    B 
-        POP     H
-        POP     B
-        RET
-
-MULTBYT:PUSH    D; BC = A * DE
-        PUSH    H
-        LXI     H,0 ; HL = PP
-        MVI     C,8; INIT COUNTER
-MLOOP:  RAR     ; TEST LSB OF MULTIPLIER
-        JNC     MNEXT
-        DAD     D; ADD MULTIPLICAND TO PP IF ONE
-MNEXT:  XCHG    ; LSHIFT MULTIPLICAND
-        DAD     H
-        XCHG
-        DCR     C; REPEAT FOR LOOP WHILE COUNTER IS > 0
-        JNZ     MLOOP
-
-        CALL XCHGBH
-        POP     H
-        POP     D
-        RET
-
-MULT2B: PUSH    B; DE *= BC
-        PUSH    H
-        MOV     H,B; KEEP TRACK OF HIGH BYTE OF MULTIPLIER
-
-        MOV     A,C; MULT LOW BYTE OF MULTIPLIER WITH MULTIPLICAND
-        CALL    MULTBYT
-
-        MOV     A,H; MOVE HIGH BYTE OF MULTIPLIER TO A
-        PUSH    B; MOVE FIRST PRODUCT TO HL
-        POP     H
-        CALL    MULTBYT; MSB TIMES MULTIPLICAND
-
-        MOV     B,C; PRODUCT *= 256
-        MVI     C,0; SUM += PRODUCT
-        DAD     B
-
-        XCHG
-        POP     H
-        POP     B
-        RET
-NEGDE:
-        CALL XCHGBD
-        CALL NEGBC
-        CALL XCHGBD
-        RET
-NEGBC:  MOV     A,C; BC = -BC
-        CMA     ; C = !C
-        MOV     C,A
-
-        MOV     A,B 
-        CMA     ; B = !B
-        MOV     B,A
-
-        INX B   ; BC++
-
-        RET     ; BC = !BC + 1 = -BC
-
-BINSUB: PUSH H; DE -= BC
-        PUSH B
-        CALL    NEGBC
-        XCHG
-        DAD B
-        XCHG
-        POP B
-        POP H
-        RET
-
-LSHIFT: INR     A; DE <<= A
-        XCHG
-LLOOP:  DCR     A; for(int i = A+1; --i > 0;)
-        JZ      LEND
-        DAD     H
-        JMP     LLOOP
-LEND:   XCHG
-        RET
-
-RSHIFT: PUSH    B; DE >>= A
-        MOV     C,A; C = A
-RLOOP:  STC     ; CLEAR CARRY BIT
-        CMC
-        
-        MOV     A,D; RSHIFT MSBYTE
-        RAR
-        MOV     D,A
-
-        MOV     A,E; RSHIFT LSBYTE WITH CARRY IN FROM MSBYTE
-        RAR
-        MOV     E,A
-
-        DCR     C; for(int c = a; c > 0; c--)
-        JNZ     RLOOP
-        POP     B 
-        RET
-
-RECTMOD:
-        PUSH B
-        CALL RECTSIGN
-        CALL MOD0
-        POP B
-        LDA FLAG
-        RAR ; SAMPLE LSB flag bit
-        RNC
-        CALL NEGDE
-        MVI A,0; CLEAR FLAGS
-        STA FLAG
-        RET
-INTDIV:
-        PUSH B
-        CALL RECTSIGN
-        CALL INTDIV0
-        POP B
-        LDA FLAG
-        RAR ; SAMPLE LSB flag bit
-        RNC
-        CALL NEGDE
-        MVI A,0; CLEAR FLAGS
-        STA FLAG
-        RET
-RECTSIGN:
-        MVI A,0; CLEAR FLAGS
-        STA FLAG
-
-        MOV A,D ; TEST DE SIGN BIT
-        RAL
-        JNC RECTSIGNNEXT
-        LDA FLAG
-        XRI 01H
-        STA FLAG
-        CALL NEGDE ; FORCE POSITIVE AND UPDATE FLAG IF NEGATIVE
-RECTSIGNNEXT:
-        MOV A,B ; TEST DE SIGN BIT
-        RAL
-        RNC
-        LDA FLAG
-        XRI 01H
-        STA FLAG
-        CALL NEGBC
-        RET
-MOD0:
-        PUSH H ; DE %= BC
-        CALL DOUBLEDIV
-        XCHG
-        POP H
-        RET
-INTDIV0:
-        PUSH H ; DE //= BC
-        CALL DOUBLEDIV
-        POP H
-        RET
-
-DOUBLEDIV:
-        PUSH    B; DE = DE // BC, HL = DE % BC
-
-; SAVE BC_0 AND DE_0 FOR LATER IN FUNCTION
-        PUSH    D
-        PUSH    B
-
-; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
-        MOV     A,B
-        ORA     A; MSBYTE == 0, USE LBYTE INSTEAD
-        JNZ     DLSHIFT
-        MOV     A,C
-
-; C TURNS INTO countLeadingZeros(BC_0)
-DLSHIFT:MVI     C,0
-DLSLOOP:RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
-        JC      DNEXT
-        INR     C
-        JMP     DLSLOOP
-
-; LEFT SHIFT DIVISOR AS MUCH AS POSSIBLE WITHOUT TRUNCATION
-DNEXT:  MOV     A,C; A = CLZ(BC_0)
-        POP     D; DE = BC_0
-        CALL    LSHIFT; DE = BC_0 << (CLZ(BC_0))
-        MOV     A,C
-        CALL    XCHGBD; BC = DE = BC_0 << (CLZ(BC_0))
-
-        POP     H; HL = DE_0
-        LXI     D,0; DE = 0
-        PUSH    D; SP->SUM = 0
-
-        LXI     D,1; DE = 1 << CLZ(BC_0)
-        CALL    LSHIFT
-                ; DE = 1 << CLZ(BC_0), BC = BC_0 << (CLZ(BC_0)), HL = DE_0, SP->0
-                ; BC = DIVISOR, HL = DIVIDEND, SP -> QUOTIENT, DE = BIT TO SET IN QUOTIENT
-
-; RSHIFT DIVISOR REPEATEDLY, SUBTRACT FROM DIVIDEND AND SET BIT IN QUOTIENT WHEN DIVISOR IS >= DIVIDEND
-DRSLOOP:MOV     A,B
-        CMP     H
-        JC      DSUB; MSBYTE OF HL > BC THEREFORE SUB
-        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>) && !(==)) THEREFORE CONTINUE
-
-        MOV     A,C ; MSYBYTES ARE EQUAL SO TEST LSBYTES
-        CMP     L
-        JC      DSUB
-        JNZ     DIVCONT; LSYBYTE OF HL < BC THEREFORE CONTINUE
-
-; HL-=BC, QUOTIENT += DE
-DSUB:   CALL    NEGBC; BC *= -1
-        DAD     B; HL += BC
-        CALL    NEGBC; BC *= -1
-
-        XTHL    ; SP -> SUM += DE; (DE = 1 << (CLZ(BC_0) - i)) 
-        DAD     D
-        XTHL
-
-DIVCONT:
-        CALL    XCHGBD; BC >>= 1
-        MVI     A,1
-        CALL    RSHIFT
-        CALL    XCHGBD
-        
-        MVI     A,1; DE >>= 1
-        CALL    RSHIFT
-
-        MVI     A,0
-        ORA     D
-        ORA     E
-        JNZ     DRSLOOP; for(int i = CLZ(BC_0); i >=0; i--)
-
-        POP     D; DE = SP -> SUM
-        POP     B
-        RET
-
+;---------------------------------------------------
 
 METACHAR EQU 128
 PARANSTAK DS    160
