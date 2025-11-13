@@ -19,12 +19,15 @@ TPA     EQU     100H            ; TRANSIENT PROGRAM AREA
 START:  LXI     SP,STAK         ; SET UP USER'S STACK
 
 START1:
-        LXI D,7
-        CALL PRINTDE
-        CALL CCRLF
+        CALL SPMSG
+        DB 'HELLO THERE! PLEASE INPUT A NUMBER.',CR,LF,0
 
-        LXI D,128
-        CALL PRINTDE
+        CALL CIMSG
+        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
+
+        CALL PARSEINT
+        CALL CCRLF
+        CALL PRINTDE    ; PARSE AND PRINT
         CALL CCRLF
 
         MVI A,7
