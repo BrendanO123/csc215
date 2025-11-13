@@ -95,7 +95,7 @@ START1:
         POP D
 
         PUSH D
-        CALL MOD
+        CALL RECTMOD
         CALL PRINTDE
         CALL CCRLF
         POP D
@@ -467,15 +467,17 @@ RLOOP:  STC     ; CLEAR CARRY BIT
         POP     B 
         RET
 
-MOD:
+RECTMOD:
         PUSH B
         CALL RECTSIGN
         CALL MOD0
         POP B
         LDA FLAG
-        RAR 
+        RAR ; SAMPLE LSB flag bit
         RNC
         CALL NEGDE
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
         RET
 INTDIV:
         PUSH B
@@ -483,9 +485,11 @@ INTDIV:
         CALL INTDIV0
         POP B
         LDA FLAG
-        RAR 
+        RAR ; SAMPLE LSB flag bit
         RNC
         CALL NEGDE
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
         RET
 RECTSIGN:
         MVI A,0; CLEAR FLAGS
@@ -496,6 +500,7 @@ RECTSIGN:
         JNC RECTSIGNNEXT
         LDA FLAG
         XRI 01H
+        STA FLAG
         CALL NEGDE ; FORCE POSITIVE AND UPDATE FLAG IF NEGATIVE
 RECTSIGNNEXT:
         MOV A,B ; TEST DE SIGN BIT
@@ -503,6 +508,7 @@ RECTSIGNNEXT:
         RNC
         LDA FLAG
         XRI 01H
+        STA FLAG
         CALL NEGBC
         RET
 MOD0:
