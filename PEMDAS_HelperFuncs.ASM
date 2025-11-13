@@ -210,55 +210,61 @@ RLOOP:  STC     ; CLEAR CARRY BIT
 DIV:    PUSH    H; DE /= BC
         PUSH    B
 
+; SAVE BC_0 AND DE_0 FOR LATER IN FUNCTION
         PUSH    D
         PUSH    B
 
+; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
         MOV     A,B
-        ORA     A; MSBYTE = 0, USE LBYTE INSTEAD
+        ORA     A; MSBYTE == 0, USE LBYTE INSTEAD
         JNZ     DLSHIFT
         MOV     A,C
 
+; C TURNS INTO countLeadingZeros(BC_0)
 DLSHIFT:MVI     C,0
-DLSLOOP:RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE AND GET LEADING ZEROS
+DLSLOOP:RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
         JC      DNEXT
         INR     C
         JMP     DLSLOOP
 
+; LEFT SHIFT DIVISOR AS MUCH AS POSSIBLE WITHOUT TRUNCATION
 DNEXT:  MOV     A,C; A = CLZ(BC_0)
         POP     D; DE = BC_0
         CALL    LSHIFT; DE = BC_0 << (CLZ(BC_0))
         MOV     A,C
+        CALL    XCHGBD; BC = DE = BC_0 << (CLZ(BC_0))
 
-        PUSH    D 
-        POP     B; BC = DE
         POP     H; HL = DE_0
-
-        LXI     D,0
-        PUSH    D; SP->0 = SUM
+        LXI     D,0; DE = 0
+        PUSH    D; SP->SUM = 0
 
         LXI     D,1; DE = 1 << CLZ(BC_0)
         CALL    LSHIFT
                 ; DE = 1 << CLZ(BC_0), BC = BC_0 << (CLZ(BC_0)), HL = DE_0, SP->0
+                ; BC = DIVISOR, HL = DIVIDEND, SP -> QUOTIENT, DE = BIT TO SET IN QUOTIENT
+
+; RSHIFT DIVISOR REPEATEDLY, SUBTRACT FROM DIVIDEND AND SET BIT IN QUOTIENT WHEN DIVISOR IS >= DIVIDEND
 DRSLOOP:MOV     A,B
         CMP     H
         JC      DSUB; MSBYTE OF HL > BC THEREFORE SUB
-        JNZ     DIVCONT; MSYBYTE OF HL < BC THEREFORE CONTINUE
+        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>=) && !(==)) THEREFORE CONTINUE
 
         MOV     A,C ; MSYBYTES ARE EQUAL SO TEST LSBYTES
         CMP     L
         JC      DSUB
         JNZ     DIVCONT; LSYBYTE OF HL < BC THEREFORE CONTINUE
 
-DSUB:   CALL    NEGBC; HL-=BC
-        DAD     B
-        CALL    NEGBC
+; HL-=BC, QUOTIENT += DE
+DSUB:   CALL    NEGBC; BC *= -1
+        DAD     B; HL += BC
+        CALL    NEGBC; BC *= -1
 
         XTHL    ; SP -> SUM += DE; (DE = 1 << (CLZ(BC_0) - i)) 
         DAD     D
         XTHL
 
-DIVCONT:CALL    XCHGBD
-        MVI     A,1; BC >>= 1
+DIVCONT:CALL    XCHGBD; BC >>= 1
+        MVI     A,1
         CALL    RSHIFT
         CALL    XCHGBD
         
@@ -276,6 +282,7 @@ DIVCONT:CALL    XCHGBD
         RET
 
 
+METACHAR: EQU 128
 METAC:  EQU     128
 STR:    DS      83
 MIDNUM: DS      160
