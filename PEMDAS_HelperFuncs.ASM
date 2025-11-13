@@ -247,7 +247,7 @@ DNEXT:  MOV     A,C; A = CLZ(BC_0)
 DRSLOOP:MOV     A,B
         CMP     H
         JC      DSUB; MSBYTE OF HL > BC THEREFORE SUB
-        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>=) && !(==)) THEREFORE CONTINUE
+        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>) && !(==)) THEREFORE CONTINUE
 
         MOV     A,C ; MSYBYTES ARE EQUAL SO TEST LSBYTES
         CMP     L
@@ -282,52 +282,59 @@ DIVCONT:CALL    XCHGBD; BC >>= 1
         RET
 
 
-METACHAR: EQU 128
-METAC:  EQU     128
-STR:    DS      83
-MIDNUM: DS      160
-SP2:    EQU     $
+METACHAR EQU 128
+PARANSTAK DS    160
+SP2     EQU     $
         DW      SP2
 
-; DE = intermediate value, HL = str replacement pointer, A = str length
-SETMID: PUSH    H 
-        PUSH    D 
+PUSHPARAN: NOP; HL = address
         PUSH    B
+        PUSH    D
+        PUSH    H
 
-        CALL    XCHGBD
-
-        LXI     H,0
+        XCHG    ; DE = store value
+        LXI     H,0 ; BC = SP1
         DAD     SP
-        XCHG
+        CALL    XCHGBH
 
-        LHLD    SP2
-; BC = VALUE, DE = SP, HL = SP2
-        PUSH    B; PUSH VALUE TO INTERMEDIATE STACK
+        LHLD    SP2 ; HL = SP = SP2
+        SPHL
 
-        DCX     H; UPDATE SP2
+        PUSH    D ; PUSH address to SP2
+        DCX     H ; update SP2
         DCX     H
         SHLD    SP2
 
-        XCHG    ; RESET SP
+        CALL    XCHGBH ; HL = BC = SP1
+        SPHL    ; SP = SP1
+
+        POP     H ; RESTORE REGS
+        POP     D 
+        POP     B
+        RET
+
+POPPARAN: NOP; DE = address
+        PUSH    B
+        PUSH    H
+
+        LXI     H,0 ; BC = SP1
+        DAD     SP
+        CALL    XCHGBH
+
+        LHLD    SP2 ; HL = SP = SP2
         SPHL
 
+        POP     D ; POP address from SP2
+        INX     H ; update SP2
+        INX     H
+        SHLD    SP2
+
+        CALL    XCHGBH ; HL = BC = SP1
+        SPHL    ; SP = SP1
+
+        POP     H ; RESTORE REGS
         POP     B
-        POP     D
-        POP     H
-
-        PUSH    H
-
-        LHLD    SP2 ; HL = INDEX OF INTERMEDIATE
-        LXI     B,SP2
-        CALL    NEGBC
-        DAD     B
-
-        POP     H
-        PUSH    H
-
-
-RSMIDS: 
-
+        RET
 
 STAK:   DS      128
 SP1:    DB      0
