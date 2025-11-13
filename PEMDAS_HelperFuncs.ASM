@@ -2,6 +2,7 @@
 CR      EQU     0DH             ; CARRIAGE RETURN
 LF      EQU     0AH             ; LINE FEED
 CTRLZ   EQU     1AH             ; OPERATOR INTERRUPT
+ZERO    EQU     30H
 
 ; CP/M BDOS FUNCTIONS
 RCONF   EQU     1               ; READ CON: INTO (A)
@@ -16,6 +17,197 @@ TPA     EQU     100H            ; TRANSIENT PROGRAM AREA
         ORG     TPA             ; ASSEMBLE PROGRAM FOR TPA
 
 START:  LXI     SP,STAK         ; SET UP USER'S STACK
+
+START1:
+        LXI D,7
+        CALL PRINTDE
+        CALL CCRLF
+
+        LXI D,128
+        CALL PRINTDE
+        CALL CCRLF
+
+        MVI A,7
+        CALL MULTBYT
+        CALL XCHGBD
+        CALL PRINTDE
+        CALL CCRLF
+
+        CALL SPMSG
+        DB 'THATS ALL, FOLKS!',0
+        JMP RBOOT   ; END TEST PROGRAM
+
+; INPUT (CHAR POINTER) GOES IN HL, RESULT GOES IN DE
+PARSEINT:
+        PUSH B
+        LXI D,00H ; CLEAR DE REGISTERS IN PREPARATION
+        LXI B,00H ; SAME WITH BC
+        MOV A,M
+        CPI '-'
+        JNZ NONNEG
+        LDA FLAG
+        ORI 01H ; SET LSB TO INDICATE SUBTRACTION LATER
+        STA FLAG
+        INX H
+        JMP PLOOP
+        NONNEG:
+                LDA FLAG
+                ANI FEH ; MASK OUT LSB TO INDICATE NO SUBTRACTION LATER
+                STA FLAG
+        PLOOP:
+                MOV A,M ; GET CHARACTER
+                CPI '0'
+                JC PLOOPEND
+                CPI '9'+1
+                JNC PLOOPEND
+
+                MULTBYTEN: ; TO DO THIS WE SHIFT THE BYTES LEFT 3 TIMES, THEN ADD THE ORIGINAL VALUES TWICE
+                        MOV B,D ; BACK UP THE PRE-LEFT-SHIFT TOTAL IN BC
+                        MOV C,E
+                        ANI 00H ; RESET CARRY/CLEAR A. WE ONLY NEED TO DO THIS ONCE SINCE RAL-ING D SHOULD NOT PUT ANYTHING 
+                                ; OTHER THAN ZERO IN THE CARRY. CONVERSELY WE COULD JC AFTER THE RAL TO DETECT AN OVERFLOW
+
+                        MOV A,E
+                        RAL
+                        MOV E,A
+                        MOV A,D
+                        RAL
+                        MOV D,A
+
+                        MOV A,E
+                        RAL
+                        MOV E,A
+                        MOV A,D
+                        RAL
+                        MOV D,A
+
+                        MOV A,E
+                        RAL
+                        MOV E,A
+                        MOV A,D
+                        RAL
+                        MOV D,A
+
+                        XCHG    ; SO WE CAN DAD
+                        DAD B   ; DAD ORIGINAL VALUE
+                        DAD B
+                        XCHG
+
+                MOV A,M ; GET CHARACTER AGAIN, SINCE WE CLOBBERED THE REGISTER
+                SUI '0'
+                ADD E
+                MOV E,A
+                MOV A,D
+                ACI 00H ; ADD CARRY TO HIGH BYTE (REG B)
+                MOV D,A
+                
+                INX H   ; INCREMENT ADDRESS
+                JMP PLOOP
+
+        PLOOPEND:
+        LDA FLAG        ; CHECK IF NEGATIVE
+        ANI 01H
+        JZ POPREGSRET
+        JMP NEGATIVE
+        POPREGSRET:
+        POP B
+        RET
+        NEGATIVE:       ; PERFORM DOUBLE SUBTRACTION
+                        ANI 00H
+                        SUB E
+                        MOV E,A
+                        MVI A,0 ; MVI INSTEAD OF SUB A BECAUSE WE DONT WANT TO TOUCH STATUS BITS
+                        SBB D
+                        MOV D,A
+                        JMP POPREGSRET
+
+; PRINTS A SIGNED 16-BIT INTEGER IN DE
+PRINTDE:
+        ; Save registers
+        PUSH PSW
+        PUSH B
+        PUSH D
+        PUSH H
+
+        MOV A,D
+        ORA E
+        JZ  PZZERO
+
+        ; Check sign
+        MOV A,D
+        ANI 80H
+        JZ  POSITIVEDONE
+
+        ; Negative: negate DE = -DE and print '-'
+        MOV A,E
+        CMA
+        MOV E,A
+        MOV A,D
+        CMA
+        MOV D,A
+        INX D
+        MVI A,'-'
+        CALL CO
+
+POSITIVEDONE:
+        MVI B,0             ; digit count = 0
+
+CONVERT:
+        MOV A,D
+        ORA E
+        JZ  POPPRINT       ; stop when quotient = 0
+
+        MVI H,0
+        MVI L,0
+
+DIVLOOP:
+        MOV A,D
+        ORA A
+        JNZ SUB10
+        MOV A,E
+        CPI 10
+        JC  DIVDONE
+SUB10:
+        MOV A,E
+        SUI 10
+        MOV E,A
+        JC  DECD
+        JMP INCQL
+DECD:
+        DCR D
+INCQL:
+        INX H
+        JMP DIVLOOP
+
+DIVDONE:
+        MOV A,E
+        ADI '0'
+        PUSH PSW
+        INR B
+        MOV D,H
+        MOV E,L
+        JMP CONVERT
+
+POPPRINT:
+        MOV C,B
+PRINTLOOP:
+        POP PSW
+        CALL CO
+        DCR C
+        JNZ PRINTLOOP
+        JMP DONE
+
+PZZERO:
+        MVI A,'0'
+        CALL CO
+
+DONE:
+        ; Restore registers
+        POP H
+        POP D
+        POP B
+        POP PSW
+        RET
 
 ; CONSOLE CHARACTER INTO REGISTER A MASKED TO 7 BITS
 CI:     PUSH    B               ; SAVE REGISTERS
@@ -40,10 +232,6 @@ CO:     PUSH    B               ; SAVE REGISTERS
         POP     D
         POP     B
         RET
-
-        ; SET UP STACK SPACE
-DS      64              ; 40H LOCATIONS
-STAK:   DB      0               ; TOP OF STACK
 
 ; CARRIAGE RETURN, LINE FEED TO CONSOLE
 TWOCR:  CALL    CCRLF           ; DOUBLE SPACE LINES
@@ -107,6 +295,7 @@ GETYN:  CALL    SPMSG
         RET                     ; AND ALL DONE
 
 INBUF:  DS      83              ; LINE INPUT BUFFER
+FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
 
 XCHGBD: PUSH    D; SWAP(BC, DE)
         PUSH    B 
@@ -121,20 +310,18 @@ XCHGBH: PUSH    H; SWAP(BC, HL)
 
 MULTBYT:PUSH    D; BC = A * DE
         PUSH    H
-        LXI     H,0
+        LXI     H,0 ; HL = PP
         MVI     C,8; INIT COUNTER
 MLOOP:  RAR     ; TEST LSB OF MULTIPLIER
-        JNC     NEXT
+        JNC     MNEXT
         DAD     D; ADD MULTIPLICAND TO PP IF ONE
-NEXT:   XCHG    ; LSHIFT MULTIPLICAND
+MNEXT:  XCHG    ; LSHIFT MULTIPLICAND
         DAD     H
         XCHG
         DCR     C; REPEAT FOR LOOP WHILE COUNTER IS > 0
-        JNZ     LOOP
-        RAR
+        JNZ     MLOOP
 
-        PUSH    H
-        POP     B
+        CALL XCHGBH
         POP     H
         POP     D
         RET
@@ -336,6 +523,6 @@ POPPARAN: NOP; DE = address
         POP     B
         RET
 
-STAK:   DS      128
-SP1:    DB      0
+        DS      128
+STAK:   DB      0
         END
