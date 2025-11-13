@@ -28,9 +28,9 @@ START1:
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
 
         CALL PARSEINT
-        CALL CCRLF
+        CALL ENDL
         CALL PRINTDE    ; PARSE AND PRINT
-        CALL CCRLF
+        CALL ENDL
         CALL XCHGBD
 
         CALL SPMSG
@@ -40,9 +40,9 @@ START1:
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
 
         CALL PARSEINT
-        CALL CCRLF
+        CALL ENDL
         CALL PRINTDE    ; PARSE AND PRINT
-        CALL CCRLF
+        CALL ENDL
         CALL XCHGBD
 
         CALL SPMSG
@@ -51,7 +51,7 @@ START1:
         PUSH D
         CALL MULT16
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
@@ -59,47 +59,47 @@ START1:
         DAD B
         XCHG
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         CALL SUB16
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         MOV A,C
         CALL LSHIFT
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         MOV A,C
         CALL RSHIFT
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         XCHG
-        CALL PUSHPARAN
-        CALL POPPARAN
+        CALL AUXPUSH
+        CALL AUXPOP
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         CALL INTDIV
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         PUSH D
         CALL RECTMOD
         CALL PRINTDE
-        CALL CCRLF
+        CALL ENDL
         POP D
 
         CALL SPMSG
@@ -192,29 +192,29 @@ SUB16:
 LSHIFT: 
         INR     A; DE <<= A
         XCHG
-LLOOP:  DCR     A; for(int i = A+1; --i > 0;)
+LSLOOP: DCR     A; for(int i = A+1; --i > 0;)
         JZ      LEND
         DAD     H
-        JMP     LLOOP
+        JMP     LSLOOP
 LEND:   XCHG
         RET
 
 RSHIFT: 
         PUSH    B; DE >>= A
         MOV     C,A; C = A
-RLOOP:  STC     ; CLEAR CARRY BIT
+RSLOOP:  STC     ; CLEAR CARRY BIT
         CMC
         
-        MOV     A,D; RSHIFT MSBYTE
+        MOV     A,D; RSHIFT MS BYTE
         RAR
         MOV     D,A
 
-        MOV     A,E; RSHIFT LSBYTE WITH CARRY IN FROM MSBYTE
+        MOV     A,E; RSHIFT LS BYTE WITH CARRY IN FROM MS BYTE
         RAR
         MOV     E,A
 
         DCR     C; for(int c = a; c > 0; c--)
-        JNZ     RLOOP
+        JNZ     RSLOOP
         POP     B 
         RET
 
@@ -283,19 +283,21 @@ DIVMOD:
 
 ; GET HIGHEST, NON-ZERO BYTE IN DIVISOR (BREAKS IF DIV BY ZERO)
         MOV     A,B
-        ORA     A; MSBYTE == 0, USE LBYTE INSTEAD
-        JNZ     DLSHIFT
+        ORA     A; MS BYTE == 0, USE LS BYTE INSTEAD
+        JNZ     DIVLSHIFT
         MOV     A,C
 
 ; C TURNS INTO countLeadingZeros(BC_0)
-DLSHIFT:MVI     C,0
-DLSLOOP:RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
-        JC      DNEXT
+DIVLSHIFT:
+        MVI     C,0
+DIVLSHIFTLOOP:
+        RAL     ; ROTATE LEFT AS MUCH AS POSSIBLE UNTIL TRUNCATE AND GET LEADING ZEROS
+        JC      DIVNEXT
         INR     C
-        JMP     DLSLOOP
+        JMP     DIVLSHIFTLOOP
 
 ; LEFT SHIFT DIVISOR AS MUCH AS POSSIBLE WITHOUT TRUNCATION
-DNEXT:  MOV     A,C; A = CLZ(BC_0)
+DIVNEXT:  MOV     A,C; A = CLZ(BC_0)
         POP     D; DE = BC_0
         CALL    LSHIFT; DE = BC_0 << (CLZ(BC_0))
         MOV     A,C
@@ -313,16 +315,16 @@ DNEXT:  MOV     A,C; A = CLZ(BC_0)
 ; RSHIFT DIVISOR REPEATEDLY, SUBTRACT FROM DIVIDEND AND SET BIT IN QUOTIENT WHEN DIVISOR IS >= DIVIDEND
 DRSLOOP:MOV     A,B
         CMP     H
-        JC      DSUB; MSBYTE OF HL > BC THEREFORE SUB
-        JNZ     DIVCONT; MSYBYTE OF HL < BC (BECAUSE !(>) && !(==)) THEREFORE CONTINUE
+        JC      DIVSUB; MS BYTE OF HL > BC THEREFORE SUB
+        JNZ     DIVCONT; MS BYTE OF HL < BC (BECAUSE !(>) && !(==)) THEREFORE CONTINUE
 
-        MOV     A,C ; MSYBYTES ARE EQUAL SO TEST LSBYTES
+        MOV     A,C ; MS BYTES ARE EQUAL SO TEST LS BYTES
         CMP     L
-        JC      DSUB
-        JNZ     DIVCONT; LSYBYTE OF HL < BC THEREFORE CONTINUE
+        JC      DIVSUB
+        JNZ     DIVCONT; LS BYTE OF HL < BC THEREFORE CONTINUE
 
 ; HL-=BC, QUOTIENT += DE
-DSUB:   CALL    NEGATEBC; BC *= -1
+DIVSUB:   CALL    NEGATEBC; BC *= -1
         DAD     B; HL += BC
         CALL    NEGATEBC; BC *= -1
 
@@ -444,7 +446,7 @@ PRINTDE:
 
         MOV A,D
         ORA E
-        JZ  PZZERO
+        JZ  PRINTZERO
 
         ; Check sign
         MOV A,D
@@ -510,7 +512,7 @@ PRINTLOOP:
         JNZ PRINTLOOP
         JMP DONE
 
-PZZERO:
+PRINTZERO:
         MVI A,'0'
         CALL CO
 
@@ -547,8 +549,8 @@ CO:     PUSH    B               ; SAVE REGISTERS
         RET
 
 ; CARRIAGE RETURN, LINE FEED TO CONSOLE
-TWOCR:  CALL    CCRLF           ; DOUBLE SPACE LINES
-CCRLF:  MVI     A,CR
+TWOCR:  CALL    ENDL           ; DOUBLE SPACE LINES
+ENDL:   MVI     A,CR
         CALL    CO
         MVI     A,LF
         JMP     CO
@@ -597,7 +599,7 @@ CIMSG:  PUSH    B               ; SAVE REGISTERS
 GETYN:  CALL    SPMSG
         DB      ' (Y/N)?: ',0
         CALL    CIMSG           ; GET INPUT LINE
-        CALL    CCRLF           ; ECHO CARRIAGE RETURN
+        CALL    ENDL           ; ECHO CARRIAGE RETURN
         LDA     INBUF+2         ; FIRST CHARACTER ONLY
         ANI     01011111B       ; CONVERT LOWER CASE TO UPPER
         CPI     'Y'             ; RETURN WITH ZERO = YES
@@ -613,11 +615,11 @@ FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
 ;---------------------------------------------------
 
 METACHAR EQU 128
-PARANSTAK DS    160
+AUXSTAK DS    160
 SP2     EQU     $
         DW      SP2
 
-PUSHPARAN: NOP; HL = address
+AUXPUSH: NOP; HL = address
         PUSH    B
         PUSH    D
         PUSH    H
@@ -638,12 +640,12 @@ PUSHPARAN: NOP; HL = address
         CALL    XCHGBH ; HL = BC = SP1
         SPHL    ; SP = SP1
 
-        POP     H ; RESTORE REGS
+        POP     H ; RESTORE REGISTERS
         POP     D 
         POP     B
         RET
 
-POPPARAN: NOP; DE = address
+AUXPOP: NOP; DE = address
         PUSH    B
         PUSH    H
 
@@ -662,7 +664,7 @@ POPPARAN: NOP; DE = address
         CALL    XCHGBH ; HL = BC = SP1
         SPHL    ; SP = SP1
 
-        POP     H ; RESTORE REGS
+        POP     H ; RESTORE REGISTERS
         POP     B
         RET
 
