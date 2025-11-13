@@ -94,6 +94,12 @@ START1:
         CALL CCRLF
         POP D
 
+        PUSH D
+        CALL MOD
+        CALL PRINTDE
+        CALL CCRLF
+        POP D
+
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
@@ -407,7 +413,11 @@ MULT2B: PUSH    B; DE *= BC
         POP     H
         POP     B
         RET
-
+NEGDE:
+        CALL XCHGBD
+        CALL NEGBC
+        CALL XCHGBD
+        RET
 NEGBC:  MOV     A,C; BC = -BC
         CMA     ; C = !C
         MOV     C,A
@@ -458,16 +468,55 @@ RLOOP:  STC     ; CLEAR CARRY BIT
         RET
 
 MOD:
+        PUSH B
+        CALL RECTSIGN
+        CALL MOD0
+        POP B
+        LDA FLAG
+        RAR 
+        RNC
+        CALL NEGDE
+        RET
+INTDIV:
+        PUSH B
+        CALL RECTSIGN
+        CALL INTDIV0
+        POP B
+        LDA FLAG
+        RAR 
+        RNC
+        CALL NEGDE
+        RET
+RECTSIGN:
+        MVI A,0; CLEAR FLAGS
+        STA FLAG
+
+        MOV A,D ; TEST DE SIGN BIT
+        RAL
+        JNC RECTSIGNNEXT
+        LDA FLAG
+        XRI 01H
+        CALL NEGDE ; FORCE POSITIVE AND UPDATE FLAG IF NEGATIVE
+RECTSIGNNEXT:
+        MOV A,B ; TEST DE SIGN BIT
+        RAL
+        RNC
+        LDA FLAG
+        XRI 01H
+        CALL NEGBC
+        RET
+MOD0:
         PUSH H ; DE %= BC
         CALL DOUBLEDIV
         XCHG
         POP H
         RET
-INTDIV:
+INTDIV0:
         PUSH H ; DE //= BC
         CALL DOUBLEDIV
         POP H
         RET
+
 DOUBLEDIV:
         PUSH    B; DE = DE // BC, HL = DE % BC
 
