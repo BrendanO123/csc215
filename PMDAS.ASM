@@ -102,6 +102,8 @@ START1:
         CALL ENDL
         POP D
 
+        CALL CIEQUATION
+
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
@@ -588,6 +590,7 @@ CIEQUATION:
 
         CALL CIMSG
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
+        CALL ENDL
 CIEQLOOP:
         MOV A,M
         CPI 0
@@ -656,7 +659,7 @@ CIEQLGROUPING:
 
         CURRENTPASS: DW MULTPASS
                 MULTPASS: DB '*',EVALMULT,'<',EVALLS,'>',EVALRS,'/',EVALDIV,'%',EVALMOD,'+',EVALSKIP,'-',EVALSKIP,0,EVALDEFAULT
-                ADDPASS: DB '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',ISOPERATORRET,'-',ISOPERATORRET,0,EVALDEFAULT
+                ADDPASS: DB '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',EVALADD,'-',EVALSUB,0,EVALDEFAULT
         
                 EVALMULT: ; Case *:
                         POP H
@@ -690,6 +693,20 @@ CIEQLGROUPING:
                         CALL RECTMOD
                         JMP EVALLOOPCONT
 
+                EVALADD:  ; Case +:
+                        POP H
+                        CALL EVALPARSE
+                        XCHG 
+                        DAD B
+                        XCHG
+                        JMP EVALLOOPCONT
+
+                EVALSUB:  ; Case -:
+                        POP H
+                        CALL EVALPARSE
+                        CALL SUB16
+                        JMP EVALLOOPCONT
+
 EVAL: ; HL = address of ')' in string
         PUSH H ; SP -> end address
 
@@ -698,7 +715,7 @@ EVAL: ; HL = address of ')' in string
 
         PUSH D ; BC = start address, HL = search address = start address (for now)
         PUSH D
-        POP B 
+        POP B
         POP H
 
         CALL AUXPUSH ; save start address for next loop
