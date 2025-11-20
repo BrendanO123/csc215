@@ -46,64 +46,95 @@ START1:
         CALL XCHGBD
 
         CALL SPMSG
-        DB 'A * B, A + B, A - B, A << B, A >> B, AUX-PUSH-POP A, A /2 B',CR,LF,0
+        DB 'A * B, A + B, A - B, A << B, A >> B, A /2 B',CR,LF,0
 
-        PUSH D
-        CALL MULT16
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+        LXI H,TEST
+        MVI A,'*'
+        CALL SWITCH
+        MVI A,'+'
+        CALL SWITCH
+        MVI A,'-'
+        CALL SWITCH
+        MVI A,'<'
+        CALL SWITCH
+        MVI A,'>'
+        CALL SWITCH
+        MVI A,'/'
+        CALL SWITCH
+        MVI A,'%'
+        CALL SWITCH
+        JMP TESTEND
 
-        PUSH D
-        XCHG
-        DAD B
-        XCHG
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+        TEST: DW '*',TESTMULT,'<',TESTLS,'>',TESTRS,'/',TESTDIV,'%',TESTMOD,'+',TESTADD,'-',TESTSUB,DEFAULT,TESTDEFAULT
+        
+                TESTMULT: ; Case *:
+                        PUSH D
+                        CALL MULT16
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        CALL SUB16
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+                TESTADD:  ; Case +:
+                        PUSH D
+                        XCHG
+                        DAD B
+                        XCHG
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        MOV A,C
-        CALL LSHIFT
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+                TESTSUB:  ; Case -:
+                        PUSH D
+                        CALL SUB16
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
+                
+                TESTLS: ; Case <:
+                        PUSH D
+                        MOV A,C
+                        CALL LSHIFT
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        MOV A,C
-        CALL RSHIFT
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+                TESTRS: ; Case >:
+                        PUSH D
+                        MOV A,C
+                        CALL RSHIFT
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        XCHG
-        CALL AUXPUSH
-        CALL AUXPOP
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+                TESTDIV: ; Case /:
+                        PUSH D
+                        CALL INTDIV
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
+                
+                TESTMOD: ; Case %:
+                        PUSH D
+                        CALL RECTMOD
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        CALL INTDIV
-        CALL PRINTDE
-        CALL ENDL
-        POP D
+                TESTDEFAULT:
+                        PUSH D
+                        CALL PRINTDE
+                        CALL ENDL
+                        POP D
+                        RET
 
-        PUSH D
-        CALL RECTMOD
-        CALL PRINTDE
-        CALL ENDL
-        POP D
-
-        CALL CIEQUATION
-
+TESTEND:
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
@@ -204,7 +235,7 @@ LEND:   XCHG
 RSHIFT: 
         PUSH    B; DE >>= A
         MOV     C,A; C = A
-RSLOOP:  STC     ; CLEAR CARRY BIT
+RSLOOP: STC     ; CLEAR CARRY BIT
         CMC
         
         MOV     A,D; RSHIFT MS BYTE
@@ -539,49 +570,49 @@ FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
 
 ;---------------------------------------------------
 
-ISOPERATOR: ; A = character
-        PUSH H 
-        LXI H,OPERATORCHECK
-        OPERATORCHECK: DB '*',ISOPERATORRET,'<',ISOPERATORRET,'>',ISOPERATORRET,'/',ISOPERATORRET,'%',ISOPERATORRET,'+',ISOPERATORRET,'-',ISOPERATORRET,0,ISOPERATORRET
-        JMP SWITCH
+DEFAULT EQU 256 ; if the second byte in the case is non-zero, then we know a single byte CASE was not entered
+    ; therefore we assume this is the default case. To get this in a DW we jut load in 256 as a 16 bit number.
 
-ISOPERATORRET: POP H
-        RET
-
-SWITCH: ; A = switch character, HL = pointer to DB with case,hook_address,case,hook_address,0,default_case_hook_address
-        ; HL is set to PC after jump so caller must preserve HL if they want it saved 
+SWITCH: ; A = switch character, HL = pointer to DW with case,hook_address,case,hook_address,(#>255),default_case_hook_address
+        ; HL is saved
         ; stack has return address on top then any previous pushes below
-        ; so if you run PUSH H; CALL SWITCH, then you will need to run POP H; XTHL
+        ; so if you run PUSH H; LXI H,DWTHING; CALL SWITCH, then you will need to run POP H; XTHL
         ; to get the return address to the top of the stack and HL back from the push
 
-
+        PUSH H
+SWITCHLOOP:
         PUSH PSW ; save A
-        MOV A,M ; test CASE value
-        CPI 0 ; if CASE value is 0
-        JZ SWITCHDEFAULT ; use case as default and execute case
+        INX H
+        MOV A,M ; test second byte of CASE value
+        DCX H
+        CPI 0 ; if second byte value is not 0, the case was not a single byte number or ASCII character
+        JNZ SWITCHDEFAULT ; use case as default and execute case
 
         POP PSW ; restore A
         CMP M ; compare with CASE value
         JZ SWITCHNEXT ; if is equal, execute case
-        INX H ; else HL += 3, continue
+        INX H ; else HL += 4 and continue
         INX H
         INX H
-        JMP SWITCH
+        INX H
+        JMP SWITCHLOOP
 
 SWITCHDEFAULT:
         POP PSW
 SWITCHNEXT:
         PUSH D ; load hook into HL
         INX H ; load LS byte
+        INX H
         MOV E,M
         INX H ; load MS byte
         MOV D,M
         XCHG
         POP D
 
-        PCHL ; jump to hook
-        ; return address is already in stack so hook case simply needs to return
+        XTHL ; put jump address on top of stack for return call and restore HL_0
+        RET ; jump to hook
 
+;---------------------------------------------------
 
 ; INPUT CONSOLE EQUATION INTO BUFFER
 CIEQUATION:
@@ -658,8 +689,8 @@ CIEQLGROUPING:
                         JMP EVALLOOP
 
         CURRENTPASS: DW MULTPASS
-                MULTPASS: DB '*',EVALMULT,'<',EVALLS,'>',EVALRS,'/',EVALDIV,'%',EVALMOD,'+',EVALSKIP,'-',EVALSKIP,0,EVALDEFAULT
-                ADDPASS: DB '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',EVALADD,'-',EVALSUB,0,EVALDEFAULT
+                MULTPASS: DW '*',EVALMULT,'<',EVALLS,'>',EVALRS,'/',EVALDIV,'%',EVALMOD,'+',EVALSKIP,'-',EVALSKIP,DEFAULT,EVALDEFAULT
+                ADDPASS: DW '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',EVALADD,'-',EVALSUB,DEFAULT,EVALDEFAULT
         
                 EVALMULT: ; Case *:
                         POP H
