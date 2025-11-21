@@ -545,6 +545,54 @@ PARSEINT:
         POP B
         RET
 
+; CONVERT SIGNED DE TO ASCII STRING IN STRBUFF
+TOASCII:
+        PUSH B
+        PUSH D
+        PUSH H
+
+        LXI H,STRBUFF   ; Point to destination buffer
+
+        ; 1. HANDLE SIGN
+        MOV A,D
+        RAL             ; Check sign bit
+        JNC TPOS       ; If positive, skip
+        MVI M,'-'       ; Write minus sign
+        INX H           ; Move buffer pointer
+        CALL NEGATEDE   ; Make number positive
+TPOS:
+        
+        ; 2. CONVERT DIGITS (Push to Stack)
+        MVI B,0         ; Digit counter
+TLOOP:
+        PUSH H          ; Save buffer pointer (DIVMOD destroys HL)
+        CALL DIVMOD     ; DE / 10, Remainder in HL
+        MOV A,L
+        ADI '0'         ; Convert to ASCII
+        PUSH PSW        ; Save digit on stack
+        INR B           ; Increment count
+        POP H           ; Restore buffer pointer
+
+        MOV A,D         ; Check if DE is 0
+        ORA E
+        JNZ TLOOP      ; Continue if not zero
+
+        ; 3. POP DIGITS INTO BUFFER
+TPOP:
+        POP PSW         ; Get digit
+        MOV M,A         ; Write to STRBUFF
+        INX H
+        DCR B
+        JNZ TPOP
+
+        ; 4. NULL TERMINATE
+        MVI M,0         ; Null terminator
+
+        POP H
+        POP D
+        POP B
+        RET
+
 SHOFN:  PUSH    B
         PUSH    H
         LDA     FCBTY
@@ -1199,6 +1247,7 @@ AUXPOP8: ; A = address
 
 INBUFSIZE EQU 128
 INBUF:  DS      INBUFSIZE+3         ; LINE INPUT BUFFER
+STRBUFF: DS 16
 FLAG:   DS      1
 DRSAV:  DS      1
 RECCT:  DS      1
