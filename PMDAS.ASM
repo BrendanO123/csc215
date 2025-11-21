@@ -79,7 +79,7 @@ CPDONE: XRA     A       ; CLEAR ACCUMULATOR
 
 NOFILE: CALL SPMSG
         DB 'NO FILE ARGUMENT. DEFAULTING...',CR,LF,0
-        JMP START1
+        JMP CIEQUATION
 
 ;---------------------------------------------------
 
