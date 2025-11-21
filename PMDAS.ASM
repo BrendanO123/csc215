@@ -48,6 +48,41 @@ TPA     EQU     100H            ; TRANSIENT PROGRAM AREA
 
 START:  LXI     SP,STAK         ; SET UP USER'S STACK
 
+        LDA     TFCB+1          ; CHECK IF A FILE WAS PROVIDED
+        CPI     ' '
+        JZ      NOFILE
+        
+        XRA     A
+        STA     FCBCR
+        CALL    GET
+
+        LXI     H,BUFFR
+        LXI     D,INBUF+2
+        MVI     C,INBUFSIZE
+CPLOOP: MOV     A,M     ; COPIES TO INBUF
+        CPI     1AH     ; EOF CHECK
+        JZ      CPDONE
+        CPI     CR      ; CARRIAGE RETURN CHECK
+        JZ      CPDONE
+        CPI     0       ; NULL CHECK
+        JZ      CPDONE
+        
+        STAX    D
+        INX     H
+        INX     D
+        DCR     C
+        JNZ     CPLOOP  ; COPY ANOTHER CHARACTER
+
+CPDONE: XRA     A       ; CLEAR ACCUMULATOR
+        STAX    D       ; ADD NULL TERMINATOR (FOR PARSER)
+        JMP RUNEQ
+
+NOFILE: CALL SPMSG
+        DB 'NO FILE ARGUMENT. DEFAULTING...',CR,LF,0
+        JMP START1
+
+WRITEDE:
+
 
 ;---------------------------------------------------
 
@@ -748,7 +783,7 @@ CIMSG:  PUSH    B               ; SAVE REGISTERS
         LXI     H,INBUF+1       ; ZERO CHARACTER COUNTER
         MVI     M,0
         DCX     H               ; SET MAXIMUM LINE LENGTH
-        MVI     M,80
+        MVI     M,INBUFSIZE
         XCHG                    ; INBUF POINTER TO DE REGISTERS
         MVI     C,RBUFF         ; SET UP READ BUFFER FUNCTION
         CALL    BDOS            ; INPUT A LINE
@@ -828,8 +863,8 @@ SWITCHNEXT:
 CIEQUATION:
         CALL SPMSG
         DB 'HELLO THERE! PLEASE INPUT AN EQUATION.',CR,LF,0
-
         CALL CIMSG
+RUNEQ:
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
         CALL ENDL
 CIEQLOOP:
@@ -1162,7 +1197,7 @@ AUXPOP8: ; A = address
         POP H
         RET
 
-INBUFSIZE EQU 83
+INBUFSIZE EQU 128
 INBUF:  DS      INBUFSIZE+3         ; LINE INPUT BUFFER
 FLAG:   DS      1
 DRSAV:  DS      1
