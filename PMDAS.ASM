@@ -500,6 +500,90 @@ PRINTINTLOOP:
         POP PSW
         RET
 
+; APPENDS CR, LF, AND THE NUMBER IN DE TO THE FILE
+APPENDDE:
+        PUSH B
+        PUSH D
+        PUSH H
+
+        ; 1. CONVERT NUMBER TO STRING
+        CALL TOASCII    ; Result is now in STRBUFF
+
+        ; 2. FIND END OF FILE DATA IN BUFFR (Look for EOF/1AH)
+        LXI H,BUFFR
+SCANEOF:
+        MOV A,M
+        CPI 1AH         ; CP/M EOF Marker
+        JZ FOUNDEOF
+        CPI 0           ; Safety check for empty buffer
+        JZ FOUNDEOF
+        INX H
+        JMP SCANEOF
+
+FOUNDEOF:
+        ; 3. WRITE CR, LF
+        MVI M,CR
+        INX H
+        MVI M,LF
+        INX H
+
+        ; 4. COPY FROM STRBUFF TO BUFFR
+        PUSH D          ; Save DE
+        LXI D,STRBUFF   ; DE points to source string
+COPYSTR:
+        LDAX D          ; Load char from STRBUFF
+        ORA A           ; Check for Null terminator
+        JZ COPYDONE
+        MOV M,A         ; Copy to BUFFR
+        INX H
+        INX D
+        JMP COPYSTR
+COPYDONE:
+        POP D           ; Restore DE
+
+        ; 5. WRITE NEW EOF MARKER
+        MVI M,1AH
+
+        ; 6. RECALCULATE FILE SIZE (RECCT)
+        ; HL currently points to the end. D=Start.
+        PUSH H          ; Save End Pointer
+        LXI D,BUFFR
+        
+        ; Subtract: HL (End) - DE (Start)
+        MOV A,L
+        SUB E
+        MOV L,A
+        MOV A,H
+        SBB D
+        MOV H,A         ; HL = Total Bytes
+        
+        ; Convert Bytes to 128-byte Records
+        ; Formula: (Bytes + 127) / 128
+        LXI D,127
+        DAD D           ; Add 127
+        
+        ; Divide by 128 (High Byte * 2 + Carry from Low)
+        MOV A,H
+        RLC             ; Shift left (multiply by 2)
+        MOV B,A
+        MOV A,L
+        ANI 80H         ; Check 7th bit of Low Byte
+        JZ NORND
+        INR B           ; Round up
+NORND:
+        MOV A,B
+        STA RECCT       ; Update Global Record Count
+        
+        POP H           ; Restore End Pointer
+
+        ; 7. SAVE TO DISK
+        CALL PUT
+
+        POP H
+        POP D
+        POP B
+        RET
+
 ; INPUT (CHAR POINTER) GOES IN HL, RESULT GOES IN DE
 PARSEINT:
         PUSH B
