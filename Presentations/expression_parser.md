@@ -68,7 +68,7 @@ The rest of the skip byte is a 7 bit unsigned integer that represents **how many
 2. Low byte of integer
 3. High byte of integer
 
-However, our other expression, `15*43`, would need to have a skip byte of 2, since there would be two extra characters (`'5'` and `'*'`) that the parser needs to skip over to get to the real binary data. 
+However, our other expression, `"15*43"`, would need to have a skip byte of 2, since there would be two extra characters (`'5'` and `'*'`) that the parser needs to skip over to get to the real binary data. 
 
 > This works great for our purposes because it allows us to fit intermediates in the smallest equation we will see, 3 bytes for two numbers and an operator, and still completely covers extremely long expressions. This means that the parser will never have to resize the buffer to put the result in or see some of the original expression peaking out from under the intermediate result and get confused.
 
@@ -84,7 +84,7 @@ Now we have gotten to the fun part. This whole document, I have been lying to yo
 
 And that's it!
 
-> It's actually quite beautiful... I can't remember who came up with it. Was it me or Brendan? What am I saying?! (Brendan is editing this document now and he distinctly recalls explaining this to Gabe repeatedly). Let the record show that ***Brendan*** came up with it. Gabe can take credit for the intermediate result structure, not this though.
+> It's actually quite beautiful... I can't remember who came up with it. Was it me or Brendan? What am I saying?! (Brendan is editing this document now and he distinctly recalls explaining this to Gabe repeatedly). Let the record show that ***Brendan*** came up with it.
 
 Having multiple stacks going on the 8080 (the paren stack and the call stack) is a tiny bit hacky. Instead of just using `DS` to allocate room for one stack, we allocate two separate stacks with two `DS` calls. We also assign a place in memory to store our secondary stack pointer with a label and a `DW` instruction. To use the other stack we:
 
