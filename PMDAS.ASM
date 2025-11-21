@@ -26,7 +26,7 @@ SDMAF   EQU     26
 ; CP/M ADDRESSES
 RBOOT   EQU     0               ; RE-BOOT CP/M SYSTEM
 BDOS    EQU     5               ; SYSTEM CALL ENTRY
-DRIVE   EQU     4               ;!! REMEMBER TO CHANGE!!
+DRIVE   EQU     1               ;!! REMEMBER TO CHANGE!!
 MEMAX   EQU     7               ; MSB TOP OF MEMORY
 TFCB    EQU     5CH             ; TRANSIENT FCB
 FCBTY   EQU     TFCB+9
@@ -75,7 +75,8 @@ CPLOOP: MOV     A,M     ; COPIES TO INBUF
 
 CPDONE: XRA     A       ; CLEAR ACCUMULATOR
         STAX    D       ; ADD NULL TERMINATOR (FOR PARSER)
-        JMP RUNEQ
+        JMP TESTPRINT
+        ;JMP RUNEQ
 
 NOFILE: CALL SPMSG
         DB 'NO FILE ARGUMENT. DEFAULTING...',CR,LF,0
@@ -637,33 +638,39 @@ TOASCII:
         ; 1. HANDLE SIGN
         MOV A,D
         RAL             ; Check sign bit
-        JNC TPOS       ; If positive, skip
+        JNC TPOS        ; If positive, skip
         MVI M,'-'       ; Write minus sign
         INX H           ; Move buffer pointer
         CALL NEGATEDE   ; Make number positive
 TPOS:
-        
-        ; 2. CONVERT DIGITS (Push to Stack)
-        MVI B,0         ; Digit counter
+        MVI C,0         ; C = Digit Counter
+
 TLOOP:
-        PUSH H          ; Save buffer pointer (DIVMOD destroys HL)
+        PUSH B          ; SAVE COUNTER (C)
+        LXI B,10        ; LOAD DIVISOR (BC = 10)
+        PUSH H          ; SAVE BUFFER PTR
+        
         CALL DIVMOD     ; DE / 10, Remainder in HL
-        MOV A,L
+        
+        MOV A,L         ; Get Remainder (Digit value)
         ADI '0'         ; Convert to ASCII
-        PUSH PSW        ; Save digit on stack
-        INR B           ; Increment count
-        POP H           ; Restore buffer pointer
+        
+        POP H           ; RESTORE BUFFER PTR
+        POP B           ; RESTORE COUNTER (C)
+        
+        PUSH PSW        ; PUSH ASCII DIGIT TO STACK
+        INR C           ; INCREMENT DIGIT COUNT
 
         MOV A,D         ; Check if DE is 0
         ORA E
-        JNZ TLOOP      ; Continue if not zero
+        JNZ TLOOP       ; Continue if not zero
 
         ; 3. POP DIGITS INTO BUFFER
 TPOP:
-        POP PSW         ; Get digit
+        POP PSW         ; Get digit from stack
         MOV M,A         ; Write to STRBUFF
         INX H
-        DCR B
+        DCR C           ; Decrement Counter
         JNZ TPOP
 
         ; 4. NULL TERMINATE
@@ -673,7 +680,6 @@ TPOP:
         POP D
         POP B
         RET
-
 SHOFN:  PUSH    B
         PUSH    H
         LDA     FCBTY
@@ -791,9 +797,11 @@ PUT:    LXI     H,BUFFR
         STA     CTSAV
         LDA     TFCB
         ORA     A
-        JNZ     PUT1
-        CALL    WROPN
-        JMP     PUTEX
+        JMP     PUT1
+        ;COMMENTED BECAUSE IN THIS PROGRAM YOU SHOULDN'T HAVE TO SPECIFY THE DRIVE
+        ;JNZ     PUT1
+        ;CALL    WROPN
+        ;JMP     PUTEX
 PUT1:   MVI     C,INITF
         CALL    BDOS
         XRA     A
@@ -989,6 +997,13 @@ SWITCHNEXT:
 ;---------------------------------------------------
 
 ; INPUT CONSOLE EQUATION INTO BUFFER
+TESTPRINT:
+        LXI H,INBUF+2
+        CALL PARSEINT
+        CALL PRINTDE
+        CALL APPENDDE
+        JMP RBOOT
+
 CIEQUATION:
         CALL SPMSG
         DB 'HELLO THERE! PLEASE INPUT AN EQUATION.',CR,LF,0
