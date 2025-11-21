@@ -1208,7 +1208,7 @@ NEXT    DS      2
 
 
                 ; SET UP STACK SPACE
-        DS      64              ; 40H LOCATIONS
+        DS      128              ; 40H LOCATIONS
 STAK:   DB      0               ; TOP OF STACK
 
 SINON:  DB      'YOUR SIGN ON MESSAGE',0
