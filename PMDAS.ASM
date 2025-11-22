@@ -814,12 +814,20 @@ PUT1:   MVI     C,INITF
         CALL    BDOS
         CPI     BDERR
         JZ      PUT2
-        CALL    CCRLF
-        CALL    SPMSG
-        DB      'OK TO ERASE ',0
-        CALL    SHOFN
-        CALL    GETYN
-        JNZ     PUTEX
+
+        ;COMMENTED BECAUSE WE KNOW WE'RE JUST APPENDING NON-DESTRUCTIVELY
+        ;CALL    CCRLF
+        ;CALL    SPMSG
+        ;DB      'OK TO ERASE ',0
+        ;CALL    SHOFN
+        ;CALL    GETYN
+        ;JNZ     PUTEX
+
+        CALL SPMSG
+        DB 'WROTE TO ',0
+        CALL SHOFN
+        CALL CCRLF
+
         LXI     D,TFCB
         MVI     C,DELEF
         CALL    BDOS
