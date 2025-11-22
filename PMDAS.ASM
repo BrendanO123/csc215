@@ -75,8 +75,7 @@ CPLOOP: MOV     A,M     ; COPIES TO INBUF
 
 CPDONE: XRA     A       ; CLEAR ACCUMULATOR
         STAX    D       ; ADD NULL TERMINATOR (FOR PARSER)
-        JMP TESTPRINT
-        ;JMP RUNEQ
+        JMP RUNEQ
 
 NOFILE: CALL SPMSG
         DB 'NO FILE ARGUMENT. DEFAULTING...',CR,LF,0
@@ -1003,14 +1002,6 @@ SWITCHNEXT:
         RET ; jump to hook
 
 ;---------------------------------------------------
-
-; INPUT CONSOLE EQUATION INTO BUFFER
-TESTPRINT:
-        LXI H,INBUF+2
-        CALL PARSEINT
-        CALL PRINTDE
-        CALL APPENDDE
-        JMP RBOOT
 
 CIEQUATION:
         CALL SPMSG
