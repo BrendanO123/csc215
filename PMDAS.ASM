@@ -135,9 +135,247 @@ START1:
                         RET
 
 TESTEND:
+
+        CALL MULT16 ; set DE
+        CALL ENDL
+
+        LXI H,INBUF+2 ; load in '-'
+        MVI M,'-'
+
+        INX H ; set BC 
+        CALL XCHGBH 
+
+        LXI H,INBUF+6 ; set HL
+
+        CALL SETINTER ; set intermediate
+
+        LXI H,INBUF+2 ; load in intermediate
+        CALL PARSENUM 
+        CALL PRINTDE 
+        CALL ENDL
+
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
+
+;---------------------------------------------------
+
+; INPUT CONSOLE EQUATION INTO BUFFER
+CIEQUATION:
+        CALL SPMSG
+        DB 'HELLO THERE! PLEASE INPUT AN EQUATION.',CR,LF,0
+
+        CALL CIMSG
+        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
+        CALL ENDL
+EVALEQUATION:
+        MOV A,M
+        CPI 0
+        JZ EQNEXT
+        
+        CPI '('
+        JZ CIEQLGROUPING
+
+        CPI ')'
+        JZ EQPARENEVAL
+
+        INX H
+        JMP EVALEQUATION
+EQNEXT: ; EVAL FINAL GROUPING
+        XCHG ; SAVE HL
+        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
+
+        MOV A,M ; LOAD FIRST CHARACTER
+        CPI '(' ; CHECK IF ENTIRE EQUATION IS IN ()
+        JNZ EQFINALEVAL
+         
+
+EQFINALEVAL:
+        CALL AUXPUSH
+        XCHG
+        CALL EVAL
+        CALL PRINTDE
+        RET
+
+
+EQLGROUPING:
+        CALL AUXPUSH ; push address to aux stack
+        INX H ; update search address
+        JMP CIEQLOOP ; return
+
+EQPARENEVAL:
+        ; get start address in BC and save (update EVAL to take both addresses)
+        ; decrement HL and increment BC to insides of parenthesis
+        ; call eval 
+        ; restore bc and hl 
+        ; parse intermediate and resize to cover parenthesis
+        ; inx h to after parenthesis 
+        ; jump back into loop 
+
+;---------------------------------------------------
+
+        EVALPARSE:
+                CALL PARSENUM ; DE = number from BC to operator/HL
+                CALL XCHGBD ; save to BC bc BC = HL therefore useless for now
+
+                INX H
+                CALL PARSENUM ; DE = number from HL/operator on to next operator
+
+                CALL XCHGBD ; fix order of numbers
+                RET
+
+        EVALLOOPCONT:
+                POP B
+                PUSH B
+                DCX H
+                CALL SETINTER
+                INX H
+
+                JMP EVALLOOP
+
+                EVALSKIP: ; Case ('+' | '-' or whatever operator is ignored):
+                        POP H ; move up HL to pass operator
+                        INX H
+
+                        POP B ; clear previous value of B
+
+                        PUSH H ; move up BC to next parameter
+                        POP B
+
+                        PUSH B ; save new value of B
+
+                        JMP EVALLOOP
+
+                EVALDEFAULT: ; Default:
+                        INX H
+                        JMP EVALLOOP
+
+        CURRENTPASS: DW MULTPASS
+                MULTPASS: DW '*',EVALMULT,'<',EVALLS,'>',EVALRS,'/',EVALDIV,'%',EVALMOD,'+',EVALSKIP,'-',EVALSKIP,DEFAULT,EVALDEFAULT
+                ADDPASS: DW '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',EVALADD,'-',EVALSUB,DEFAULT,EVALDEFAULT
+        
+                EVALMULT: ; Case *:
+                        POP H
+                        CALL EVALPARSE
+                        CALL MULT16
+                        JMP EVALLOOPCONT
+                
+                EVALLS: ; Case <:
+                        POP H
+                        CALL EVALPARSE
+                        MOV A,C
+                        CALL LSHIFT
+                        JMP EVALLOOPCONT
+
+                EVALRS: ; Case >:
+                        POP H
+                        CALL EVALPARSE
+                        MOV A,C
+                        CALL RSHIFT
+                        JMP EVALLOOPCONT
+
+                EVALDIV: ; Case /:
+                        POP H
+                        CALL EVALPARSE
+                        CALL INTDIV
+                        JMP EVALLOOPCONT
+                
+                EVALMOD: ; Case %:
+                        POP H
+                        CALL EVALPARSE
+                        CALL RECTMOD
+                        JMP EVALLOOPCONT
+
+                EVALADD:  ; Case +:
+                        POP H
+                        CALL EVALPARSE
+                        XCHG 
+                        DAD B
+                        XCHG
+                        JMP EVALLOOPCONT
+
+                EVALSUB:  ; Case -:
+                        POP H
+                        CALL EVALPARSE
+                        CALL SUB16
+                        JMP EVALLOOPCONT
+
+EVAL: ; HL = address of ')' in string
+        PUSH H ; SP -> end address
+
+        CALL AUXPOP ; DE = start address = address of '(' in string
+        INX D
+
+        PUSH D ; BC = start address, HL = search address = start address (for now)
+        PUSH D
+        POP B
+        POP H
+
+        CALL AUXPUSH ; save start address for next loop
+        PUSH B ; save start address for repeated use
+
+EVALLOOP:
+        POP D ; get start address off stack
+        POP B ; get end address off stack
+        
+        ; CMP HL with end address
+        PUSH B ; save end address
+        PUSH H ; save HL
+        CALL NEGATEBC ; HL -= end address
+        DAD B
+
+        MOV A,H ; set zero flag if at end
+        ORA L
+
+        POP H ; restore H
+        POP B ; restore B
+
+        PUSH B ; push end address back onto stack
+        PUSH D ; push start address back onto stack
+
+        JNZ EVALNEXT
+
+        ; DO SOMETHING ON END
+        LXI B,MULTPASS ; set zero flag bit if CURRENTPASS = MULTPASS
+        CALL NEGATEBC
+        DAD B
+        MOV A,H
+        ORA L
+
+        JNZ EVALEND ; if ADDPASS, clean up and return
+
+        LXI H,ADDPASS ; set to add pass switch logic
+        SHLD CURRENTPASS
+
+        POP B ; clear starting point 
+        CALL AUXPOP ; load initial starting point + 1
+        PUSH B ; store reloaded starting point
+
+        PUSH B ; set index
+        POP H
+
+        CALL AUXPUSH ; reset initial starting point for clean up
+        ; run add-sub loop
+
+EVALNEXT:
+        MOV A,M
+        PUSH H
+        LHLD CURRENTPASS
+        JMP SWITCH
+
+EVALEND:
+        POP B ; clear starting point
+        CALL AUXPOP ; load in starting point
+
+        CALL XCHGBH ; load final result into DE
+        CALL PARSENUM
+
+        POP H ; load ending point into HL
+        DCX B ; decrease starting point to include '('
+
+        CALL SETINTER ; store and overwrite "()"
+
+        RET
 
 ;---------------------------------------------------
 
@@ -393,6 +631,215 @@ DIVCONT:
 
 ;---------------------------------------------------
 
+DEFAULT EQU 256 ; if the second byte in the case is non-zero, then we know a single byte CASE was not entered
+    ; therefore we assume this is the default case. To get this in a DW we jut load in 256 as a 16 bit number.
+
+SWITCH: ; A = switch character, HL = pointer to DW with case,hook_address,case,hook_address,(#>255),default_case_hook_address
+        ; HL is saved
+        ; stack has return address on top then any previous pushes below
+        ; so if you run PUSH H; LXI H,DWTHING; CALL SWITCH, then you will need to run POP H; XTHL
+        ; to get the return address to the top of the stack and HL back from the push
+
+        PUSH H
+SWITCHLOOP:
+        PUSH PSW ; save A
+        INX H
+        MOV A,M ; test second byte of CASE value
+        DCX H
+        CPI 0 ; if second byte value is not 0, the case was not a single byte number or ASCII character
+        JNZ SWITCHDEFAULT ; use case as default and execute case
+
+        POP PSW ; restore A
+        CMP M ; compare with CASE value
+        JZ SWITCHNEXT ; if is equal, execute case
+        INX H ; else HL += 4 and continue
+        INX H
+        INX H
+        INX H
+        JMP SWITCHLOOP
+
+SWITCHDEFAULT:
+        POP PSW
+SWITCHNEXT:
+        PUSH D ; load hook into HL
+        INX H ; load LS byte
+        INX H
+        MOV E,M
+        INX H ; load MS byte
+        MOV D,M
+        XCHG
+        POP D
+
+        XTHL ; put jump address on top of stack for return call and restore HL_0
+        RET ; jump to hook
+
+;---------------------------------------------------
+
+INTERMASK EQU 7FH
+INTERBIT EQU 80H
+
+PARSENUM: ; HL = first character of parameter/number
+        MOV A,M ; TEST IF FIRST CHAR IS '-'
+        CPI '-'
+        JNZ PARSENUMNEXT
+
+; (NEG)
+        INX H ; GET FIRST REAL CHAR
+        MOV A,M
+        DCX H
+
+PARSENUMNEXT:
+        ANI INTERMASK
+        JZ PARSEINT
+        JMP PARSEINTER
+
+PARSEINTER: ; HL = address of first byte of intermediate, stores into DE
+        PUSH PSW
+        LXI D,0
+        MVI A,0
+        STA FLAG
+
+
+        MOV A,M
+        CPI '-'
+        JNZ PARSEINTERNEXT
+        MVI A,1 ; if negative, set flag and skip '-'
+        STA FLAG
+        INX H
+
+
+PARSEINTERNEXT:
+        MOV A,M ; GET SKIP BYTE
+        ANI INTERMASK ; MASK OUT INTERMEDIATE FLAG
+        MOV E,A
+        DAD D ; SKIP THAT MANY BYTES
+
+        INX H; POINT TO FIRST BYTE OF INTERMEDIATE
+        MOV E,M ; LOAD DE
+        INX H
+        MOV D,M
+
+        LDA FLAG ; test LSB of flag to see if negative
+        RAR
+
+        JNC PARSEINTERRET ; if negative, negate and clear flag
+        CALL NEGATEDE 
+        MVI A,0
+        STA FLAG
+
+PARSEINTERRET:
+        POP PSW ; RESTORE AND RETURN
+        INX H
+        RET
+
+SETINTER: ; HL = right-most address of sequence, DE = value, BC = left-most address
+
+        PUSH H
+        PUSH B
+
+        CALL NEGATEBC ; CONSTRUCT SKIP BYTE
+        DAD B ; GET SKIP DIST
+        MOV A,L
+        SUI 2 ; TO ACCOUNT FOR BYTES RESERVED TO STORE VALUE
+        ORI INTERBIT ; SET MSB TO DENOTE AS NON-ASCII
+
+        POP H ; RESTORE BC_0
+        MOV M,A ; SET SKIP BYTE
+
+        XTHL ; RESTORE HL_0 AND BC_0
+        POP B
+
+        MOV M,D ; SET VALUE
+        DCX H
+        MOV M,E
+
+        DCX H ; MAKE SURE NEXT BIT IS MARKED AS INTERMEDIATE
+        MOV A,M
+        ORI INTERBIT
+        MOV M,A
+        
+        INX H ; RESTORE AND RETURN
+        INX H
+        RET
+
+;---------------------------------------------------
+
+AUXSTAK DS    160
+SP2     EQU     $
+        DW      SP2
+
+AUXPUSH: ; HL = address
+        PUSH    B
+        PUSH    D
+        PUSH    H
+
+        XCHG    ; DE = store value
+        LXI     H,0 ; BC = SP1
+        DAD     SP
+        CALL    XCHGBH
+
+        LHLD    SP2 ; HL = SP = SP2
+        SPHL
+
+        PUSH    D ; PUSH address to SP2
+        DCX     H ; update SP2
+        DCX     H
+        SHLD    SP2
+
+        CALL    XCHGBH ; HL = BC = SP1
+        SPHL    ; SP = SP1
+
+        POP     H ; RESTORE REGISTERS
+        POP     D 
+        POP     B
+        RET
+
+AUXPOP: ; DE = address
+        PUSH    B
+        PUSH    H
+
+        LXI     H,0 ; BC = SP1
+        DAD     SP
+        CALL    XCHGBH
+
+        LHLD    SP2 ; HL = SP = SP2
+        SPHL
+
+        POP     D ; POP address from SP2
+        INX     H ; update SP2
+        INX     H
+        SHLD    SP2
+
+        CALL    XCHGBH ; HL = BC = SP1
+        SPHL    ; SP = SP1
+
+        POP     H ; RESTORE REGISTERS
+        POP     B
+        RET
+
+AUXPUSH8: ; A = address
+        PUSH H
+        LHLD SP2
+        DCX H
+        MOV M,A
+        SHLD SP2
+        POP H
+        RET
+
+AUXPOP8: ; A = address
+        PUSH H
+        LHLD SP2
+        MOV A,M
+        INX H
+        SHLD SP2
+        POP H
+        RET
+
+        DS      128
+STAK:   DB      0
+
+;---------------------------------------------------
+
 PRINTDE: ; PRINTS A SIGNED 16-BIT INTEGER IN DE
         ; Save registers
         PUSH PSW
@@ -567,391 +1014,4 @@ GETYN:  CALL    SPMSG
 INBUFSIZE EQU 160
 INBUF:  DS      INBUFSIZE+3              ; LINE INPUT BUFFER
 FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
-
-;---------------------------------------------------
-
-DEFAULT EQU 256 ; if the second byte in the case is non-zero, then we know a single byte CASE was not entered
-    ; therefore we assume this is the default case. To get this in a DW we jut load in 256 as a 16 bit number.
-
-SWITCH: ; A = switch character, HL = pointer to DW with case,hook_address,case,hook_address,(#>255),default_case_hook_address
-        ; HL is saved
-        ; stack has return address on top then any previous pushes below
-        ; so if you run PUSH H; LXI H,DWTHING; CALL SWITCH, then you will need to run POP H; XTHL
-        ; to get the return address to the top of the stack and HL back from the push
-
-        PUSH H
-SWITCHLOOP:
-        PUSH PSW ; save A
-        INX H
-        MOV A,M ; test second byte of CASE value
-        DCX H
-        CPI 0 ; if second byte value is not 0, the case was not a single byte number or ASCII character
-        JNZ SWITCHDEFAULT ; use case as default and execute case
-
-        POP PSW ; restore A
-        CMP M ; compare with CASE value
-        JZ SWITCHNEXT ; if is equal, execute case
-        INX H ; else HL += 4 and continue
-        INX H
-        INX H
-        INX H
-        JMP SWITCHLOOP
-
-SWITCHDEFAULT:
-        POP PSW
-SWITCHNEXT:
-        PUSH D ; load hook into HL
-        INX H ; load LS byte
-        INX H
-        MOV E,M
-        INX H ; load MS byte
-        MOV D,M
-        XCHG
-        POP D
-
-        XTHL ; put jump address on top of stack for return call and restore HL_0
-        RET ; jump to hook
-
-;---------------------------------------------------
-
-; INPUT CONSOLE EQUATION INTO BUFFER
-CIEQUATION:
-        CALL SPMSG
-        DB 'HELLO THERE! PLEASE INPUT AN EQUATION.',CR,LF,0
-
-        CALL CIMSG
-        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
-        CALL ENDL
-CIEQLOOP:
-        MOV A,M
-        CPI 0
-        JZ CIEQNEXT
-        
-        CPI '('
-        JZ CIEQLGROUPING
-
-        CPI ')'
-        JZ EVAL
-
-        INX H
-        JMP CIEQLOOP
-CIEQNEXT:
-        XCHG ; EVAL FINAL GROUPING
-        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
-        CALL AUXPUSH
-        XCHG
-        CALL EVAL
-        CALL PRINTDE
-        RET
-
-
-CIEQLGROUPING:
-        CALL AUXPUSH ; push address to aux stack
-        INX H ; update search address
-        JMP CIEQLOOP ; return
-
-;---------------------------------------------------
-
-        EVALPARSE:
-                CALL PARSENUM ; DE = number from BC to operator/HL
-                CALL XCHGBD ; save to BC bc BC = HL therefore useless for now
-
-                INX H
-                CALL PARSENUM ; DE = number from HL/operator on to next operator
-
-                CALL XCHGBD ; fix order of numbers
-                RET
-
-        EVALLOOPCONT:
-                POP B
-                PUSH B
-                DCX H
-                CALL SETINTER
-                INX H
-
-                JMP EVALLOOP
-
-                EVALSKIP: ; Case ('+' | '-' or whatever operator is ignored):
-                        POP H ; move up HL to pass operator
-                        INX H
-
-                        POP B ; clear previous value of B
-
-                        PUSH H ; move up BC to next parameter
-                        POP B
-
-                        PUSH B ; save new value of B
-
-                        JMP EVALLOOP
-
-                EVALDEFAULT: ; Default:
-                        INX H
-                        JMP EVALLOOP
-
-        CURRENTPASS: DW MULTPASS
-                MULTPASS: DW '*',EVALMULT,'<',EVALLS,'>',EVALRS,'/',EVALDIV,'%',EVALMOD,'+',EVALSKIP,'-',EVALSKIP,DEFAULT,EVALDEFAULT
-                ADDPASS: DW '*',EVALSKIP,'<',EVALSKIP,'>',EVALSKIP,'/',EVALSKIP,'%',EVALSKIP,'+',EVALADD,'-',EVALSUB,DEFAULT,EVALDEFAULT
-        
-                EVALMULT: ; Case *:
-                        POP H
-                        CALL EVALPARSE
-                        CALL MULT16
-                        JMP EVALLOOPCONT
-                
-                EVALLS: ; Case <:
-                        POP H
-                        CALL EVALPARSE
-                        MOV A,C
-                        CALL LSHIFT
-                        JMP EVALLOOPCONT
-
-                EVALRS: ; Case >:
-                        POP H
-                        CALL EVALPARSE
-                        MOV A,C
-                        CALL RSHIFT
-                        JMP EVALLOOPCONT
-
-                EVALDIV: ; Case /:
-                        POP H
-                        CALL EVALPARSE
-                        CALL INTDIV
-                        JMP EVALLOOPCONT
-                
-                EVALMOD: ; Case %:
-                        POP H
-                        CALL EVALPARSE
-                        CALL RECTMOD
-                        JMP EVALLOOPCONT
-
-                EVALADD:  ; Case +:
-                        POP H
-                        CALL EVALPARSE
-                        XCHG 
-                        DAD B
-                        XCHG
-                        JMP EVALLOOPCONT
-
-                EVALSUB:  ; Case -:
-                        POP H
-                        CALL EVALPARSE
-                        CALL SUB16
-                        JMP EVALLOOPCONT
-
-EVAL: ; HL = address of ')' in string
-        PUSH H ; SP -> end address
-
-        CALL AUXPOP ; DE = start address = address of '(' in string
-        INX D
-
-        PUSH D ; BC = start address, HL = search address = start address (for now)
-        PUSH D
-        POP B
-        POP H
-
-        CALL AUXPUSH ; save start address for next loop
-        PUSH B ; save start address for repeated use
-
-EVALLOOP:
-        POP D ; get start address off stack
-        POP B ; get end address off stack
-        
-        ; CMP HL with end address
-        PUSH B ; save end address
-        PUSH H ; save HL
-        CALL NEGATEBC ; HL -= end address
-        DAD B
-
-        MOV A,H ; set zero flag if at end
-        ORA L
-
-        POP H ; restore H
-        POP B ; restore B
-
-        PUSH B ; push end address back onto stack
-        PUSH D ; push start address back onto stack
-
-        JNZ EVALNEXT
-
-        ; DO SOMETHING ON END
-        LXI B,MULTPASS ; set zero flag bit if CURRENTPASS = MULTPASS
-        CALL NEGATEBC
-        DAD B
-        MOV A,H
-        ORA L
-
-        JNZ EVALEND ; if ADDPASS, clean up and return
-
-        LXI H,ADDPASS ; set to add pass switch logic
-        SHLD CURRENTPASS
-
-        POP B ; clear starting point 
-        CALL AUXPOP ; load initial starting point + 1
-        PUSH B ; store reloaded starting point
-
-        PUSH B ; set index
-        POP H
-
-        CALL AUXPUSH ; reset initial starting point for clean up
-        ; run add-sub loop
-
-EVALNEXT:
-        MOV A,M
-        PUSH H
-        LHLD CURRENTPASS
-        JMP SWITCH
-
-EVALEND:
-        POP B ; clear starting point
-        CALL AUXPOP ; load in starting point
-
-        CALL XCHGBH ; load final result into DE
-        CALL PARSENUM
-
-        POP H ; load ending point into HL
-        DCX B ; decrease starting point to include '('
-
-        CALL SETINTER ; store and overwrite "()"
-
-        RET
-
-;---------------------------------------------------
-
-INTERMASK EQU 7FH
-INTERBIT EQU 80H
-
-PARSENUM: ; HL = first character of parameter/number
-        MOV A,M
-        CPI '-'
-        JNZ PARSENUMNEXT
-        INX H
-        MOV A,M
-        DCX H
-PARSENUMNEXT:
-        ANI INTERMASK
-        JNZ PARSEINTER
-        JMP PARSEINT
-
-PARSEINTER: ; HL = address of first byte of intermediate, stores into DE
-        PUSH PSW
-        LXI D,0
-
-        MOV A,M ; GET SKIP BYTE
-        ANI INTERMASK ; MASK OUT INTERMEDIATE FLAG
-        MOV E,A
-        DAD D ; SKIP THAT MANY BYTES
-
-        INX ; POINT TO FIRST BYTE OF INTERMEDIATE
-        MOV E,M ; LOAD DE
-        INX 
-        MOV D,M
-
-
-        POP PSW ; RESTORE AND RETURN
-        INX H
-        RET
-
-SETINTER: ; HL = right-most address of sequence, DE = value, BC = left-most address
-
-        PUSH H
-        PUSH B
-
-        CALL NEGATEBC ; CONSTRUCT SKIP BYTE
-        DAD B ; GET SKIP DIST
-        MOV A,L
-        SUI 2 ; TO ACCOUNT FOR BYTES RESERVED TO STORE VALUE
-        ORI INTERBIT ; SET MSB TO DENOTE AS NON-ASCII
-
-        POP H ; RESTORE BC_0
-        MOV M,A ; SET SKIP BYTE
-
-        XTHL ; RESTORE HL_0 AND BC_0
-        POP B
-
-        MOV M,D ; SET VALUE
-        DCX H
-        MOV M,E
-
-        DCX H ; MAKE SURE NEXT BIT IS MARKED AS INTERMEDIATE
-        MOV A,M
-        ORI INTERBIT
-        MOV M,A
-        
-        INX H ; RESTORE AND RETURN
-        INX H
-        RET
-
-AUXSTAK DS    160
-SP2     EQU     $
-        DW      SP2
-
-AUXPUSH: ; HL = address
-        PUSH    B
-        PUSH    D
-        PUSH    H
-
-        XCHG    ; DE = store value
-        LXI     H,0 ; BC = SP1
-        DAD     SP
-        CALL    XCHGBH
-
-        LHLD    SP2 ; HL = SP = SP2
-        SPHL
-
-        PUSH    D ; PUSH address to SP2
-        DCX     H ; update SP2
-        DCX     H
-        SHLD    SP2
-
-        CALL    XCHGBH ; HL = BC = SP1
-        SPHL    ; SP = SP1
-
-        POP     H ; RESTORE REGISTERS
-        POP     D 
-        POP     B
-        RET
-
-AUXPOP: ; DE = address
-        PUSH    B
-        PUSH    H
-
-        LXI     H,0 ; BC = SP1
-        DAD     SP
-        CALL    XCHGBH
-
-        LHLD    SP2 ; HL = SP = SP2
-        SPHL
-
-        POP     D ; POP address from SP2
-        INX     H ; update SP2
-        INX     H
-        SHLD    SP2
-
-        CALL    XCHGBH ; HL = BC = SP1
-        SPHL    ; SP = SP1
-
-        POP     H ; RESTORE REGISTERS
-        POP     B
-        RET
-
-AUXPUSH8: ; A = address
-        PUSH H
-        LHLD SP2
-        DCX H
-        MOV M,A
-        SHLD SP2
-        POP H
-        RET
-
-AUXPOP8: ; A = address
-        PUSH H
-        LHLD SP2
-        MOV A,M
-        INX H
-        SHLD SP2
-        POP H
-        RET
-
-        DS      128
-STAK:   DB      0
         END
