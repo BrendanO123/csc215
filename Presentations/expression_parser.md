@@ -156,7 +156,7 @@ DEFAULT EQU 256 ; if the second byte in the case is non-zero, then we know a sin
 SWITCH: ; A = switch character, HL = pointer to DW with case,hook_address,case,hook_address,(#>255),default_case_hook_address
         ; HL is saved
         ; stack has return address on top then any previous pushes below
-        ; so if you run PUSH H; LXI H,DWTHING; CALL SWITCH, then you will need to run POP H; XTHL
+        ; so if you run PUSH H; LXI H,DW_THING; CALL SWITCH, then you will need to run POP H; XTHL
         ; to get the return address to the top of the stack and HL back from the push
 
         PUSH H
