@@ -48,96 +48,207 @@ START1:
         CALL SPMSG
         DB 'A * B, A + B, A - B, A << B, A >> B, A /2 B',CR,LF,0
 
+        LXI H, INBUF+2
+        MVI M,'1'
+        INX H
+        MVI M,'6'
+        INX H
+        MVI M,'*'
+        INX H
+        MVI M,'3'
+        INX H
+        MVI M,0
+
+        LXI H,INBUF+4
+        LXI B,INBUF+2
+        PUSH B
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'*'
         LXI H,TEST
-        MVI A,'*'
         CALL SWITCH
-        MVI A,'+'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'+'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,'-'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'-'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,'<'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'<'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,'>'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'>'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,'/'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'/'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,'%'
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,'%'
+        LXI H,TEST
         CALL SWITCH
-        MVI A,0
+
+        PUSH H
+        LXI H,INBUF+4
+        MVI M,0
+        LXI H,TEST
         CALL SWITCH
+
         JMP TESTEND
 
         TEST: DW '*',TESTMULT,'<',TESTLS,'>',TESTRS,'/',TESTDIV,'%',TESTMOD,'+',TESTADD,'-',TESTSUB,DEFAULT,TESTDEFAULT
         
-                TESTMULT: ; Case *:
+                TESTCONT:
+                        POP B ; get start address of intermediate
+                        PUSH B ; restore stack
+
+                        CALL AUXPOP ; DE = return address 
                         PUSH D
+                        RET
+                TESTMULT: ; Case *:
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         CALL MULT16
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
                 TESTADD:  ; Case +:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         XCHG
                         DAD B
                         XCHG
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
                 TESTSUB:  ; Case -:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         CALL SUB16
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
                 
                 TESTLS: ; Case <:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         MOV A,C
                         CALL LSHIFT
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
                 TESTRS: ; Case >:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         MOV A,C
                         CALL RSHIFT
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
                 TESTDIV: ; Case /:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         CALL INTDIV
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
                 
                 TESTMOD: ; Case %:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         CALL RECTMOD
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
                 TESTDEFAULT:
-                        PUSH D
+                        POP H ; get return address
+                        CALL AUXPUSH ; save
+                        POP H ; get HL
+                        PUSH H ; save end address
+                        ; leave BC in stack
+                        CALL EVALPARSE
+                        POP H ; restore end address
                         CALL PRINTDE
                         CALL ENDL
-                        POP D
-                        RET
+                        CALL TESTCONT
 
 TESTEND:
         CALL CIEQUATION
+        LXI H, INBUF+2
+        MVI M,'1'
+        INX H
+        MVI M,'6'
+        INX H
+        MVI M,'*'
+        INX H
+        MVI M,'3'
+        INX H
+        MVI M,0
+        XCHG 
+
+        LXI H,INBUF+2
+        CALL AUXPUSH 
+        XCHG 
+        CALL EVAL
+        CALL PRINTDE
+        CALL ENDL
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
