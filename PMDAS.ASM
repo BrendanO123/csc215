@@ -27,7 +27,7 @@ START1:
         CALL CIMSG
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
 
-        CALL PARSEINT
+        CALL PARSENUM
         CALL ENDL
         CALL PRINTDE    ; PARSE AND PRINT
         CALL ENDL
@@ -39,7 +39,7 @@ START1:
         CALL CIMSG
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
 
-        CALL PARSEINT
+        CALL PARSENUM
         CALL ENDL
         CALL PRINTDE    ; PARSE AND PRINT
         CALL ENDL
@@ -59,63 +59,66 @@ START1:
         INX H
         MVI M,0
 
-        LXI H,INBUF+4
         LXI B,INBUF+2
         PUSH B
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'*'
+        PUSH H
+        MVI A,'*'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'+'
+        PUSH H
+        MVI A,'+'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'-'
+        PUSH H
+        MVI A,'-'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'<'
+        PUSH H
+        MVI A,'<'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'>'
+        PUSH H
+        MVI A,'>'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'/'
+        PUSH H
+        MVI A,'/'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,'%'
+        PUSH H
+        MVI A,'%'
         LXI H,TEST
         CALL SWITCH
 
-        PUSH H
         LXI H,INBUF+4
-        MVI M,0
+        PUSH H
+        MVI A,0
         LXI H,TEST
         CALL SWITCH
+
+        POP B ; clear final B
 
         JMP TESTEND
 
         TEST: DW '*',TESTMULT,'<',TESTLS,'>',TESTRS,'/',TESTDIV,'%',TESTMOD,'+',TESTADD,'-',TESTSUB,DEFAULT,TESTDEFAULT
         
                 TESTCONT:
+                        CALL PRINTDE
+                        CALL ENDL
                         POP B ; get start address of intermediate
                         PUSH B ; restore stack
 
@@ -125,109 +128,86 @@ START1:
                 TESTMULT: ; Case *:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         CALL MULT16
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
 
                 TESTADD:  ; Case +:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         XCHG
                         DAD B
                         XCHG
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
 
                 TESTSUB:  ; Case -:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         CALL SUB16
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
                 
                 TESTLS: ; Case <:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         MOV A,C
                         CALL LSHIFT
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
 
                 TESTRS: ; Case >:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         MOV A,C
                         CALL RSHIFT
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
 
                 TESTDIV: ; Case /:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         CALL INTDIV
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
                 
                 TESTMOD: ; Case %:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
                         CALL RECTMOD
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        JMP TESTCONT
 
                 TESTDEFAULT:
                         POP H ; get return address
                         CALL AUXPUSH ; save
+
                         POP H ; get HL
-                        PUSH H ; save end address
                         ; leave BC in stack
                         CALL EVALPARSE
-                        POP H ; restore end address
-                        CALL PRINTDE
-                        CALL ENDL
-                        CALL TESTCONT
+                        ; Do nothing with DE
+                        JMP TESTCONT
 
 TESTEND:
         CALL CIEQUATION
@@ -789,8 +769,8 @@ SWITCHNEXT:
 
 ;---------------------------------------------------
 
-INTERMASK EQU 7FH
-INTERBIT EQU 80H
+INTERMASK EQU 127
+INTERBIT128 EQU 128
 
 PARSENUM: ; HL = first character of parameter/number
         MOV A,M ; TEST IF FIRST CHAR IS '-'
@@ -803,9 +783,9 @@ PARSENUM: ; HL = first character of parameter/number
         DCX H
 
 PARSENUMNEXT:
-        ANI INTERMASK
-        JZ PARSEINT
-        JMP PARSEINTER
+        ANI INTERBIT
+        JNZ PARSEINTER
+        JMP PARSEINT
 
 PARSEINTER: ; HL = address of first byte of intermediate, stores into DE
         PUSH PSW
@@ -855,7 +835,7 @@ SETINTER: ; HL = right-most address of sequence, DE = value, BC = left-most addr
         DAD B ; GET SKIP DIST
         MOV A,L
         SUI 2 ; TO ACCOUNT FOR BYTES RESERVED TO STORE VALUE
-        ORI INTERBIT ; SET MSB TO DENOTE AS NON-ASCII
+        ORI INTERBIT128 ; SET MSB TO DENOTE AS NON-ASCII
 
         POP H ; RESTORE BC_0
         MOV M,A ; SET SKIP BYTE
@@ -869,7 +849,7 @@ SETINTER: ; HL = right-most address of sequence, DE = value, BC = left-most addr
 
         DCX H ; MAKE SURE NEXT BIT IS MARKED AS INTERMEDIATE
         MOV A,M
-        ORI INTERBIT
+        ORI INTERBIT128
         MOV M,A
         
         INX H ; RESTORE AND RETURN
@@ -999,7 +979,7 @@ PRINTINTLOOP:
 PARSEINT:
         PUSH B
         LXI D,00H ; CLEAR DE REGISTERS IN PREPARATION
-        LXI B,10 ; SAME WITH BC
+        LXI B,10
         MOV A,M
         CPI '-'
         JNZ NONNEG
