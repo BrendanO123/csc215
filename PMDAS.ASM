@@ -210,6 +210,26 @@ START1:
                         JMP TESTCONT
 
 TESTEND:
+        LXI D,1 ; set DE
+        CALL ENDL
+
+        LXI H,INBUF+2 ; load in '-'
+        MVI M,'-'
+
+        INX H ; set BC 
+        CALL XCHGBH 
+
+        LXI H,INBUF+6 ; set HL
+
+        CALL SETINTER ; set intermediate
+
+        LXI D,12
+
+        LXI H,INBUF+2 ; load in intermediate
+        CALL PARSENUM 
+        CALL PRINTDE 
+        CALL ENDL
+
         CALL CIEQUATION
         LXI H, INBUF+2
         MVI M,'1'
@@ -257,6 +277,7 @@ EVALEQUATION:
         INX H
         JMP EVALEQUATION
 EQFINALEVAL: ; EVAL FINAL GROUPING
+        DCX H
         XCHG ; SAVE HL
         LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
         CALL AUXPUSH ; push as start address
@@ -282,6 +303,14 @@ EQPARENEVAL:
 ;---------------------------------------------------
 
 EVAL: ; HL = end address of string (address of ')' in string)
+        PUSH H ; this is little patch bc we overwrote HL before pushing it as ending address
+        ; to fix this, I am just pushing this here, retrieving it below, pushing it to aux stack, and continuing
+
+        XCHG
+        CALL PRINTDE 
+        CALL ENDL 
+        XCHG
+        
         CALL AUXPOP ; DE = start address  of string (address of '(' in string)
 
         PUSH D ; BC = start address, HL = search address = start address (for now)
@@ -293,7 +322,10 @@ EVAL: ; HL = end address of string (address of ')' in string)
         CALL AUXPUSH 
         CALL XCHGBH
 
+        XTHL ; get original end address
         CALL AUXPUSH ; save end address for end check
+        POP H ; restore HL to search index
+
         PUSH B ; save start address for repeated use
 
 EVALLOOP:
@@ -302,19 +334,23 @@ EVALLOOP:
         CALL AUXPUSH ; (HL is pushed but AUXPOP puts end address into DE
         XCHG ; therefore DE is put into HL before AUXPUSH then restored)
 
+        CALL PRINTDE 
+        CALL ENDL
+
+        XCHG
+        CALL PRINTDE 
+        CALL ENDL 
+        XCHG
+
         PUSH H ; save HL
         CALL NEGATEDE ; compare with HL
         DAD D 
-        MOV A,H 
-        ORA L ; sets zero flag if end address in DE == HL
-
         MOV A,H 
         RAL ; sets carry flag if end address in DE > HL (sub resulted in a negative result)
 
         POP H ; restore HL
 
-        JZ EVALEOS ; DO SOMETHING ON END
-        JC EVALEOS ; DO SOMETHING ON END
+        JNC EVALEOS ; DO SOMETHING ON END
 
 ; continue eval if HL < DE
         MOV A,M
@@ -331,7 +367,7 @@ EVALEOS:
         MOV A,H 
         ORA L ; sets zero flag if end address in DE == HL
 
-        JZ EVALEND ; if already in addpass 
+        JZ EVALEND ; if already in addpass, go to end. Else:
 
         LXI H,ADDPASS ; set switch logic to add pass logic
         SHLD CURRENTPASS
@@ -350,6 +386,12 @@ EVALEOS:
         CALL AUXPUSH
 
         PUSH B ; set search index
+        POP H
+
+        PUSH H 
+        CALL PARSENUM 
+        CALL PRINTDE
+        CALL ENDL 
         POP H
 
         JMP EVALLOOP; run add-sub loop
@@ -391,9 +433,37 @@ EVALEND:
                 POP B ; get start address of intermediate
                 PUSH B ; restore stack
 
+                CALL XCHGBD
+                CALL PRINTDE 
+                CALL ENDL
+                CALL XCHGBD
+
+                CALL PRINTDE 
+                CALL ENDL
+
+                XCHG
+                CALL PRINTDE 
+                CALL ENDL
+                XCHG
+                
                 DCX H ; decrement HL to not overflow bounds
                 CALL SETINTER ; set
                 INX H ; increment HL back
+
+                CALL XCHGBD
+                CALL PRINTDE 
+                CALL ENDL
+                CALL XCHGBD
+
+                CALL XCHGBH
+                PUSH H
+                PUSH D 
+                CALL PARSENUM 
+                CALL PRINTDE 
+                CALL ENDL 
+                POP D 
+                POP H 
+                CALL XCHGBH
 
                 JMP EVALLOOP ; return to loop
 
@@ -417,9 +487,9 @@ CURRENTPASS: DW MULTPASS
                 EVALDEFAULT: ; Default:
                         POP H
                         MOV A,M ; test if is skip char to avoid misclassifying intermediates as operators
-                        ANI INTERMASK
+                        ANI INTERBIT
                         JZ EVALDEFAULTNEXT ; if it is a normal num, just walk through it
-                        JNZ PARSEINTER ; if it is an intermediate, use parse_intermediate to skip HL past intermediate
+                        CALL PARSEINTER ; if it is an intermediate, use parse_intermediate to skip HL past intermediate
                         JMP EVALLOOP ; return to loop
                 EVALDEFAULTNEXT:
                         INX H ; skip char
