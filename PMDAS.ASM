@@ -269,7 +269,7 @@ EVALEQUATION:
         JZ EQFINALEVAL
         
         CPI '('
-        JZ CIEQLGROUPING
+        JZ EQLGROUPING
 
         CPI ')'
         JZ EQPARENEVAL
@@ -290,7 +290,7 @@ EQFINALEVAL: ; EVAL FINAL GROUPING
 EQLGROUPING:
         CALL AUXPUSH ; push address to aux stack
         INX H ; update search address
-        JMP CIEQLOOP ; return
+        JMP EVALEQUATION ; return
 
 EQPARENEVAL:
         PUSH H
@@ -343,10 +343,6 @@ EVALLOOP:
         JMP SWITCH
 
 EVALEOS:
-
-        JMP EVALEND ; temp test only mult pass
-
-
         LHLD CURRENTPASS ; load in current pass 
         LXI D,ADDPASS ; and addpass 
 
@@ -377,7 +373,7 @@ EVALEOS:
         POP H
 
         JMP EVALLOOP; run add-sub loop
-EVALEND:'
+EVALEND:
         LXI H,MULTPASS 
         SHLD CURRENTPASS
 
@@ -882,7 +878,7 @@ SETINTER: ; HL = right-most address of sequence, DE = value, BC = left-most addr
 
 ;---------------------------------------------------
 
-AUXSTAK DS    160
+        DS    160
 SP2     EQU     $
         DW      SP2
 
@@ -1040,7 +1036,6 @@ PARSEINT:
         LDA FLAG        ; CHECK IF NEGATIVE
         ANI 01H
         CNZ NEGATEDE
-        POPREGSRET:
         POP B
         RET
 
@@ -1131,5 +1126,5 @@ GETYN:  CALL    SPMSG
 
 INBUFSIZE EQU 160
 INBUF:  DS      INBUFSIZE+3              ; LINE INPUT BUFFER
-FLAG: DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
+FLAG:   DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
         END
