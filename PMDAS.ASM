@@ -121,6 +121,9 @@ ReverseLoop:
         DCR A 
         JNZ ReverseLoop
 
+        MVI A,1 ; silence APPENDDE
+        STA SilentPut
+
         LDA LineCount
 AppendLoop:
         PUSH PSW
@@ -1313,11 +1316,15 @@ PUT1:   MVI     C,INITF
         ;CALL    GETYN
         ;JNZ     PUTEX
 
+        LDA SilentPut ; test if put should be silent
+        ORA A 
+        JNZ PutPrintEnd ; if so, skip print
         CALL SPMSG
         DB 'WROTE TO ',0
         CALL SHOFN
         CALL CCRLF
 
+PutPrintEnd:
         LXI     D,TFCB
         MVI     C,DELEF
         CALL    BDOS
@@ -1357,7 +1364,12 @@ PUT4:   LDA     RECCT
         LDA     CTSAV
         STA     RECCT
 
-PUTEX:  CALL    CCRLF
+PUTEX:  
+        LDA SilentPut ; test if put should be silent
+        ORA A 
+        JNZ PUTEX2
+        CALL    CCRLF
+PUTEX2:        
         CALL    CPDMA
         RET
 
@@ -1369,6 +1381,7 @@ STRBUFF: DS 16
 FLAG:   DS      1 ; FLAG BYTE FOR USE BY THE PROGRAM
 EofFlag: DS 1
 LineCount: DB 0
+SilentPut: DB 0
 DRSAV:  DS      1
 RECCT:  DS      1
 CTSAV   DS      1
