@@ -9,9 +9,36 @@ RCONF   EQU     1               ; READ CON: INTO (A)
 WCONF   EQU     2               ; WRITE (A) TO CON:
 RBUFF   EQU     10              ; READ A CONSOLE LINE
 
+; CP/M DISK ACCESS FUNCTIONS
+INITF   EQU     13
+OPENF   EQU     15
+CLOSF   EQU     16
+FINDF   EQU     17
+DELEF   EQU     19
+READF   EQU     20
+WRITF   EQU     21
+MAKEF   EQU     22
+SDMAF   EQU     26
+
 ; CP/M ADDRESSES
 RBOOT   EQU     0               ; RE-BOOT CP/M SYSTEM
 BDOS    EQU     5               ; SYSTEM CALL ENTRY
+DRIVE   EQU     1               ;!! REMEMBER TO CHANGE!!
+MEMAX   EQU     7               ; MSB TOP OF MEMORY
+TFCB    EQU     5CH             ; TRANSIENT FCB
+FCBTY   EQU     TFCB+9
+FCBEX   EQU     TFCB+12
+FCBS2   EQU     TFCB+14
+FCBRC   EQU     TFCB+15
+FCBCR   EQU     TFCB+32
+TBUFF   EQU     80H
+
+; CP/M FLAGS
+BDAOK   EQU     0
+BDER1   EQU     1
+BDER2   EQU     2
+BDERR   EQU     255
+
 TPA     EQU     100H            ; TRANSIENT PROGRAM AREA
 
         ORG     TPA             ; ASSEMBLE PROGRAM FOR TPA
@@ -20,8 +47,43 @@ START:  LXI     SP,STAK         ; SET UP USER'S STACK
 
 ;---------------------------------------------------
 
-START1:
+        LDA     TFCB+1          ; CHECK IF A FILE WAS PROVIDED
+        CPI     ' '
+        JZ      NOFILE
+        
+        XRA     A
+        STA     FCBCR
+        CALL    GET
+
+        LXI     H,BUFFR
+        LXI     D,INBUF+2
+        MVI     C,INBUFSIZE
+
+CPLOOP: MOV     A,M     ; COPIES TO INBUF
+        CPI     1AH     ; EOF CHECK
+        JZ      CPDONE
+        CPI     CR      ; CARRIAGE RETURN CHECK
+        JZ      CPDONE
+        CPI     0       ; NULL CHECK
+        JZ      CPDONE
+        
+        STAX    D
+        INX     H
+        INX     D
+        DCR     C
+        JNZ     CPLOOP  ; COPY ANOTHER CHARACTER
+
+CPDONE: XRA     A       ; CLEAR ACCUMULATOR
+        STAX    D       ; ADD NULL TERMINATOR (FOR PARSER)
+        LXI H,INBUF+2
+        CALL EVALEQUATION
+        JMP TestEnd
+
+NOFILE: CALL SPMSG
+        DB 'NO FILE ARGUMENT. DEFAULTING...',CR,LF,0
         CALL CIEQUATION
+
+TestEnd:
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
@@ -732,9 +794,6 @@ AUXPOP8: ; A = address
         POP H
         RET
 
-        DS      128
-STAK:   DB      0
-
 ;---------------------------------------------------
 
 PRINTDE: ; PRINTS A SIGNED 16-BIT INTEGER IN DE
@@ -848,6 +907,7 @@ CO:     PUSH    B               ; SAVE REGISTERS
 
 ; CARRIAGE RETURN, LINE FEED TO CONSOLE
 TWOCR:  CALL    ENDL           ; DOUBLE SPACE LINES
+CCRLF:
 ENDL:   MVI     A,CR
         CALL    CO
         MVI     A,LF
@@ -907,7 +967,351 @@ GETYN:  CALL    SPMSG
         CPI     0               ; RESET ZERO FLAG
         RET                     ; AND ALL DONE
 
-INBUFSIZE EQU 160
-INBUF:  DS      INBUFSIZE+3              ; LINE INPUT BUFFER
-FLAG:   DS 1 ; FLAG BYTE FOR USE BY THE PROGRAM
+;---------------------------------------------------
+
+; APPENDS CR, LF, AND THE NUMBER IN DE TO THE FILE
+APPENDDE:
+        PUSH B
+        PUSH D
+        PUSH H
+
+        ; 1. CONVERT NUMBER TO STRING
+        CALL TOASCII    ; Result is now in STRBUFF
+
+        ; 2. FIND END OF FILE DATA IN BUFFR (Look for EOF/1AH)
+        LXI H,BUFFR
+SCANEOF:
+        MOV A,M
+        CPI 1AH         ; CP/M EOF Marker
+        JZ FOUNDEOF
+        CPI 0           ; Safety check for empty buffer
+        JZ FOUNDEOF
+        INX H
+        JMP SCANEOF
+
+FOUNDEOF:
+        ; 3. WRITE CR, LF
+        MVI M,CR
+        INX H
+        MVI M,LF
+        INX H
+
+        ; 4. COPY FROM STRBUFF TO BUFFR
+        PUSH D          ; Save DE
+        LXI D,STRBUFF   ; DE points to source string
+COPYSTR:
+        LDAX D          ; Load char from STRBUFF
+        ORA A           ; Check for Null terminator
+        JZ COPYDONE
+        MOV M,A         ; Copy to BUFFR
+        INX H
+        INX D
+        JMP COPYSTR
+COPYDONE:
+        POP D           ; Restore DE
+
+        ; 5. WRITE NEW EOF MARKER
+        MVI M,1AH
+
+        ; 6. RECALCULATE FILE SIZE (RECCT)
+        ; HL currently points to the end. D=Start.
+        PUSH H          ; Save End Pointer
+        LXI D,BUFFR
+        
+        ; Subtract: HL (End) - DE (Start)
+        MOV A,L
+        SUB E
+        MOV L,A
+        MOV A,H
+        SBB D
+        MOV H,A         ; HL = Total Bytes
+        
+        ; Convert Bytes to 128-byte Records
+        ; Formula: (Bytes + 127) / 128
+        LXI D,127
+        DAD D           ; Add 127
+        
+        ; Divide by 128 (High Byte * 2 + Carry from Low)
+        MOV A,H
+        RLC             ; Shift left (multiply by 2)
+        MOV B,A
+        MOV A,L
+        ANI 80H         ; Check 7th bit of Low Byte
+        JZ NORND
+        INR B           ; Round up
+NORND:
+        MOV A,B
+        STA RECCT       ; Update Global Record Count
+        
+        POP H           ; Restore End Pointer
+
+        ; 7. SAVE TO DISK
+        CALL PUT
+
+        POP H
+        POP D
+        POP B
+        RET
+
+; CONVERT SIGNED DE TO ASCII STRING IN STRBUFF
+TOASCII:
+        PUSH B
+        PUSH D
+        PUSH H
+
+        LXI H,STRBUFF   ; Point to destination buffer
+
+        ; 1. HANDLE SIGN
+        MOV A,D
+        RAL             ; Check sign bit
+        JNC TPOS        ; If positive, skip
+        MVI M,'-'       ; Write minus sign
+        INX H           ; Move buffer pointer
+        CALL NEGATEDE   ; Make number positive
+TPOS:
+        MVI C,0         ; C = Digit Counter
+
+TLOOP:
+        PUSH B          ; SAVE COUNTER (C)
+        LXI B,10        ; LOAD DIVISOR (BC = 10)
+        PUSH H          ; SAVE BUFFER PTR
+        
+        CALL DIVMOD     ; DE / 10, Remainder in HL
+        
+        MOV A,L         ; Get Remainder (Digit value)
+        ADI '0'         ; Convert to ASCII
+        
+        POP H           ; RESTORE BUFFER PTR
+        POP B           ; RESTORE COUNTER (C)
+        
+        PUSH PSW        ; PUSH ASCII DIGIT TO STACK
+        INR C           ; INCREMENT DIGIT COUNT
+
+        MOV A,D         ; Check if DE is 0
+        ORA E
+        JNZ TLOOP       ; Continue if not zero
+
+        ; 3. POP DIGITS INTO BUFFER
+TPOP:
+        POP PSW         ; Get digit from stack
+        MOV M,A         ; Write to STRBUFF
+        INX H
+        DCR C           ; Decrement Counter
+        JNZ TPOP
+
+        ; 4. NULL TERMINATE
+        MVI M,0         ; Null terminator
+
+        POP H
+        POP D
+        POP B
+        RET
+SHOFN:  PUSH    B
+        PUSH    H
+        LDA     FCBTY
+        MOV     C,A
+        XRA     A
+        STA     FCBTY
+        STA     FCBEX
+        LXI     H,TFCB ; SHOW DISK DRIVE
+        MOV     A,M
+        ANI     0FH     ; LIMIT TO 4 BIT
+        ORI     40H     ; CONVERT TO ASCII
+        CALL    CO
+        MVI     A,':'
+        CALL    CO
+        INX     H
+        CALL    COMSG
+        MOV     A,C
+        LXI     H,FCBTY
+        MOV     M,A
+        MVI     A,'.'
+        CALL    CO
+        CALL    COMSG
+        POP     H
+        POP     B
+        RET
+
+REMSG:  CALL    TWOCR
+        CALL    SPMSG
+        DB      'PERMANENT READ ERROR',CR,LF,0
+        RET
+
+WEMSG:  CALL    TWOCR
+        CALL    SPMSG
+        DB      'PERMANENT WRITE ERROR',CR,LF,0
+        RET
+
+WROPN:  CALL    TWOCR
+        CALL    SPMSG
+        DB 'CAN NOT OPEN FOR WRITE',CR,LF,0
+        RET
+CPDMA:  LXI     D,TBUFF
+        MVI     C,SDMAF
+        CALL    BDOS
+        RET
+DRSEL:  CALL    CIMSG
+        LDA     INBUF+2
+        ANI     01011111B
+        SUI     '@'
+        JM      DRERR
+        SUI     17
+        JP      DRERR
+        ADI     17
+        RET
+DRERR:  XRA     A
+        RET
+
+; READ A FILE FROM DISK INTO "BUFFR"
+
+GET:    LXI     H,BUFFR        ; GET BUFFER START
+        SHLD    NEXT           ; ADDRESS FOR DMA
+        LXI     D,TFCB         ; SEE IF FILE IS ON DISK
+        MVI     C,OPENF        ; AND OPEN FOR READ
+        CALL    BDOS
+        CPI     BDERR          ; IS IT THERE?
+        JNZ     GET1           ; YES, READ IT IN
+        CALL    TWOCR          ; NO, SHOW ERROR
+        CALL    SPMSG
+        DB      'CAN NOT FIND ',0
+        CALL    SHOFN          ; SHOW FILE NAME
+ERREX:  CALL    TWOCR          ; ERROR EXIT TO CP/M
+        JMP     RBOOT
+
+GET1:   XRA     A              ; ZERO RECORD COUNTER
+        STA     RECCT          ; AND READ A FILE INTO BUFFR
+
+GET2:   LHLD    NEXT           ; SET BUFFER ADDRESS
+        XCHG
+        MVI     C,SDMAF
+        CALL    BDOS
+        LXI     D,TFCB         ; READ ONE RECORD INTO
+        MVI     C,READF        ; BUFFER
+        CALL    BDOS
+        CPI     BDAOK          ; READ OK?
+        JZ      GET3           ; YES, DO MORE
+        CPI     BDER1          ; MAYBE, END OF FILE?
+        JZ      GETEX          ; YES, NO PROBLEM
+        CALL    REMSG          ; NO, SHOW ERROR
+        JMP     ERREX          ; AND ALL DONE
+
+GET3:   LDA     RECCT          ; COUNT THE RECORD
+        INR     A
+        STA     RECCT
+        LHLD    NEXT           ; INCREMENT BUFFER ADDRESS
+        LXI     D,128          ; BY RECORD SIZE
+        DAD     D              ; ROOM LEFT IN RAM?
+        SHLD    NEXT           ; STOP BELOW CCP
+        LDA     MEMAX          ; COMPARE MSB
+        DCR     A
+        CMP     H
+        JNZ     GET2           ; CONTINUE IF NOT EQUAL
+        CALL    TWOCR          ; ELSE SHOW OUT OF MEMORY
+        CALL    SPMSG
+        DB      'OUT OF MEMORY',0
+        JMP     ERREX          ; AND GIVE UP
+
+GETEX:  ; NORMAL EXIT
+        CALL    CPDMA          ; RESTORE CP/M DMA
+        RET
+
+; WRITE A FILE FROM "BUFFR" TO DISK
+
+PUT:    LXI     H,BUFFR
+        SHLD    NEXT
+        LDA     RECCT
+        STA     CTSAV
+        LDA     TFCB
+        ORA     A
+        JMP     PUT1
+        ;COMMENTED BECAUSE IN THIS PROGRAM YOU SHOULDN'T HAVE TO SPECIFY THE DRIVE
+        ;JNZ     PUT1
+        ;CALL    WROPN
+        ;JMP     PUTEX
+PUT1:   MVI     C,INITF
+        CALL    BDOS
+        XRA     A
+        STA     FCBCR
+        LXI     H,0
+        SHLD    FCBEX
+        SHLD    FCBS2
+        LXI     D,TFCB
+        MVI     C,FINDF
+        CALL    BDOS
+        CPI     BDERR
+        JZ      PUT2
+
+        ;COMMENTED BECAUSE WE KNOW WE'RE JUST APPENDING NON-DESTRUCTIVELY
+        ;CALL    CCRLF
+        ;CALL    SPMSG
+        ;DB      'OK TO ERASE ',0
+        ;CALL    SHOFN
+        ;CALL    GETYN
+        ;JNZ     PUTEX
+
+        CALL SPMSG
+        DB 'WROTE TO ',0
+        CALL SHOFN
+        CALL CCRLF
+
+        LXI     D,TFCB
+        MVI     C,DELEF
+        CALL    BDOS
+
+PUT2:   LXI     D,TFCB
+        MVI     C,MAKEF
+        CALL    BDOS
+        CPI     BDERR
+        JNZ     PUT3
+        CALL    WROPN
+        JMP     PUTEX
+
+PUT3:   LHLD    NEXT
+        XCHG
+        MVI     C,SDMAF
+        CALL    BDOS
+        LHLD    NEXT
+        LXI     D,128
+        DAD     D
+        SHLD    NEXT
+        LXI     D,TFCB
+        MVI     C,WRITF
+        CALL    BDOS
+        CPI     BDAOK
+        JZ      PUT4
+        CALL    WEMSG
+        JMP     PUTEX
+
+PUT4:   LDA     RECCT
+        DCR     A
+        STA     RECCT
+        JNZ     PUT3
+        CALL    CPDMA
+        LXI     D,TFCB
+        MVI     C,CLOSF
+        CALL    BDOS
+        LDA     CTSAV
+        STA     RECCT
+
+PUTEX:  CALL    CCRLF
+        CALL    CPDMA
+        RET
+
+;---------------------------------------------------
+
+INBUFSIZE EQU 128
+INBUF:  DS      INBUFSIZE+3         ; LINE INPUT BUFFER
+STRBUFF: DS 16
+FLAG:   DS      1 ; FLAG BYTE FOR USE BY THE PROGRAM
+DRSAV:  DS      1
+RECCT:  DS      1
+CTSAV   DS      1
+NEXT    DS      2 
+                        ; SET UP STACK SPACE
+        DS      128     ; 40H LOCATIONS
+STAK:   DB      0       ; TOP OF STACK
+
+SINON:  DB      'YOUR SIGN ON MESSAGE',0
+;       HERE THRU CCP IS BUFFER SPACE
+BUFFR:
         END
