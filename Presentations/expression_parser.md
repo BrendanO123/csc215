@@ -80,7 +80,7 @@ Now we have gotten to the fun part. This whole document, I have been lying to yo
 
 1. When the parser sees an **open parenthesis**, it pushes that location to the parenthesis stack.
 2. When parser sees a **close parentheses**, it pops the last open parenthesis location, and evaluates from there to the current location. Both the multiplication/div/etc pass and the addition/subtraction pass is performed over its length. That entire parenthetical expression is then replaced with a binary intermediate value.
-3. We either wrap the entire thing in parenthesis or run a final evaluation to clear up anything outside all of the parenthesis. I will let you know when one of these ideas actually works.
+3. Then we run a final evaluation over the entire string to clear up anything outside all of the parenthesis.
 
 And that's it!
 
@@ -193,10 +193,10 @@ SWITCHNEXT:
         RET ; jump to hook
 ```
 
-Our "switch statement" is really just cases (single byte) followed by memory locations (two bytes).
-You define those and then call or jump to SWITCH.
+Our "switch statement" is really just cases (single byte with null byte padding to two bytes) 
+followed by memory locations (two bytes). You define those and then call or jump to SWITCH.
 
-The "memory locations" after each case byte are called "hooks" because they are machine code.
+The "memory locations" after each cases are called "hooks," they are machine code version of function pointers.
 SWITCH starts at the first case, compares it to the target value, and if the comparison succeeds (`JZ` instruction), then it jumps to the hook.
 
 If the comparison fails, it increments the pointer four times to skip the current case as well as the padding from DW and the two address bytes.
@@ -208,4 +208,4 @@ Our switch statement even supports a default case and fallthrough (I am sure eve
 Well, that's it. I hope you enjoyed.
 
 Brendan's GH: @BrendanO123
-My GH: @Archonic944
+Gabe's GH: @Archonic944
