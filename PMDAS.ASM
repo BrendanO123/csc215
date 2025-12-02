@@ -21,234 +21,7 @@ START:  LXI     SP,STAK         ; SET UP USER'S STACK
 ;---------------------------------------------------
 
 START1:
-        CALL SPMSG
-        DB 'HELLO THERE! PLEASE INPUT A NUMBER.',CR,LF,0
-
-        CALL CIMSG
-        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
-
-        CALL PARSENUM
-        CALL ENDL
-        CALL PRINTDE    ; PARSE AND PRINT
-        CALL ENDL
-        CALL XCHGBD
-
-        CALL SPMSG
-        DB 'PLEASE INPUT ANOTHER NUMBER.',CR,LF,0
-
-        CALL CIMSG
-        LXI H,INBUF+2   ; POINT TO FIRST CHARACTER
-
-        CALL PARSENUM
-        CALL ENDL
-        CALL PRINTDE    ; PARSE AND PRINT
-        CALL ENDL
-        CALL XCHGBD
-
-        CALL SPMSG
-        DB 'A * B, A + B, A - B, A << B, A >> B, A /2 B',CR,LF,0
-
-        LXI H, INBUF+2
-        MVI M,'1'
-        INX H
-        MVI M,'6'
-        INX H
-        MVI M,'*'
-        INX H
-        MVI M,'3'
-        INX H
-        MVI M,0
-
-        LXI B,INBUF+2
-        PUSH B
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'*'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'+'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'-'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'<'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'>'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'/'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,'%'
-        LXI H,TEST
-        CALL SWITCH
-
-        LXI H,INBUF+4
-        PUSH H
-        MVI A,0
-        LXI H,TEST
-        CALL SWITCH
-
-        POP B ; clear final B
-
-        JMP TESTEND
-
-        TEST: DW '*',TESTMULT,'<',TESTLS,'>',TESTRS,'/',TESTDIV,'%',TESTMOD,'+',TESTADD,'-',TESTSUB,DEFAULT,TESTDEFAULT
-        
-                TESTCONT:
-                        CALL PRINTDE
-                        CALL ENDL
-                        POP B ; get start address of intermediate
-                        PUSH B ; restore stack
-
-                        CALL AUXPOP ; DE = return address 
-                        PUSH D
-                        RET
-                TESTMULT: ; Case *:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        CALL MULT16
-                        JMP TESTCONT
-
-                TESTADD:  ; Case +:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        XCHG
-                        DAD B
-                        XCHG
-                        JMP TESTCONT
-
-                TESTSUB:  ; Case -:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        CALL SUB16
-                        JMP TESTCONT
-                
-                TESTLS: ; Case <:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        MOV A,C
-                        CALL LSHIFT
-                        JMP TESTCONT
-
-                TESTRS: ; Case >:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        MOV A,C
-                        CALL RSHIFT
-                        JMP TESTCONT
-
-                TESTDIV: ; Case /:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        CALL INTDIV
-                        JMP TESTCONT
-                
-                TESTMOD: ; Case %:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        CALL RECTMOD
-                        JMP TESTCONT
-
-                TESTDEFAULT:
-                        POP H ; get return address
-                        CALL AUXPUSH ; save
-
-                        POP H ; get HL
-                        ; leave BC in stack
-                        CALL EVALPARSE
-                        ; Do nothing with DE
-                        JMP TESTCONT
-
-TESTEND:
-        LXI D,1 ; set DE
-        CALL ENDL
-
-        LXI H,INBUF+2 ; load in '-'
-        MVI M,'-'
-
-        INX H ; set BC 
-        CALL XCHGBH 
-
-        LXI H,INBUF+6 ; set HL
-
-        CALL SETINTER ; set intermediate
-
-        LXI D,12
-
-        LXI H,INBUF+2 ; load in intermediate
-        CALL PARSENUM 
-        CALL PRINTDE 
-        CALL ENDL
-
         CALL CIEQUATION
-        LXI H, INBUF+2
-        MVI M,'1'
-        INX H
-        MVI M,'6'
-        INX H
-        MVI M,'*'
-        INX H
-        MVI M,'3'
-        INX H
-        MVI M,0
-        XCHG 
-
-        LXI H,INBUF+2
-        CALL AUXPUSH 
-        XCHG 
-        CALL EVAL
-        CALL PRINTDE
-        CALL ENDL
         CALL SPMSG
         DB 'THATS ALL, FOLKS!',0
         JMP RBOOT   ; END TEST PROGRAM
@@ -305,11 +78,6 @@ EQPARENEVAL:
 EVAL: ; HL = end address of string (address of ')' in string)
         PUSH H ; this is little patch bc we overwrote HL before pushing it as ending address
         ; to fix this, I am just pushing this here, retrieving it below, pushing it to aux stack, and continuing
-
-        XCHG
-        CALL PRINTDE 
-        CALL ENDL 
-        XCHG
         
         CALL AUXPOP ; DE = start address  of string (address of '(' in string)
 
@@ -333,14 +101,6 @@ EVALLOOP:
         XCHG ; and push back onto aux stack 
         CALL AUXPUSH ; (HL is pushed but AUXPOP puts end address into DE
         XCHG ; therefore DE is put into HL before AUXPUSH then restored)
-
-        CALL PRINTDE 
-        CALL ENDL
-
-        XCHG
-        CALL PRINTDE 
-        CALL ENDL 
-        XCHG
 
         PUSH H ; save HL
         CALL NEGATEDE ; compare with HL
@@ -388,12 +148,6 @@ EVALEOS:
         PUSH B ; set search index
         POP H
 
-        PUSH H 
-        CALL PARSENUM 
-        CALL PRINTDE
-        CALL ENDL 
-        POP H
-
         JMP EVALLOOP; run add-sub loop
 EVALEND:
         LXI H,MULTPASS 
@@ -432,38 +186,10 @@ EVALEND:
         EVALLOOPCONT:
                 POP B ; get start address of intermediate
                 PUSH B ; restore stack
-
-                CALL XCHGBD
-                CALL PRINTDE 
-                CALL ENDL
-                CALL XCHGBD
-
-                CALL PRINTDE 
-                CALL ENDL
-
-                XCHG
-                CALL PRINTDE 
-                CALL ENDL
-                XCHG
                 
                 DCX H ; decrement HL to not overflow bounds
                 CALL SETINTER ; set
                 INX H ; increment HL back
-
-                CALL XCHGBD
-                CALL PRINTDE 
-                CALL ENDL
-                CALL XCHGBD
-
-                CALL XCHGBH
-                PUSH H
-                PUSH D 
-                CALL PARSENUM 
-                CALL PRINTDE 
-                CALL ENDL 
-                POP D 
-                POP H 
-                CALL XCHGBH
 
                 JMP EVALLOOP ; return to loop
 
@@ -487,7 +213,7 @@ CURRENTPASS: DW MULTPASS
                 EVALDEFAULT: ; Default:
                         POP H
                         MOV A,M ; test if is skip char to avoid misclassifying intermediates as operators
-                        ANI INTERBIT
+                        ANI INTERBIT128
                         JZ EVALDEFAULTNEXT ; if it is a normal num, just walk through it
                         CALL PARSEINTER ; if it is an intermediate, use parse_intermediate to skip HL past intermediate
                         JMP EVALLOOP ; return to loop
@@ -853,7 +579,7 @@ PARSENUM: ; HL = first character of parameter/number
         DCX H
 
 PARSENUMNEXT:
-        ANI INTERBIT
+        ANI INTERBIT128
         JNZ PARSEINTER
         JMP PARSEINT
 
