@@ -112,9 +112,19 @@ NOFILE: CALL SPMSG
 
 TestEnd:
         LDA LineCount
-AppendLoop:
+ReverseLoop:
         POP D
         PUSH PSW
+        XCHG 
+        CALL AUXPUSH 
+        POP PSW 
+        DCR A 
+        JNZ ReverseLoop
+
+        LDA LineCount
+AppendLoop:
+        PUSH PSW
+        CALL AUXPOP
         CALL APPENDDE
         POP PSW
         DCR A
