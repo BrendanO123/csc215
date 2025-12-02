@@ -1035,12 +1035,8 @@ COPYDONE:
         LXI D,BUFFR
         
         ; Subtract: HL (End) - DE (Start)
-        MOV A,L
-        SUB E
-        MOV L,A
-        MOV A,H
-        SBB D
-        MOV H,A         ; HL = Total Bytes
+        CALL NEGATEDE
+        DAD D ; HL = Total Bytes
         
         ; Convert Bytes to 128-byte Records
         ; Formula: (Bytes + 127) / 128
