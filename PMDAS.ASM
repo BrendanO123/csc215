@@ -332,7 +332,22 @@ CURRENTPASS: DW MULTPASS
 
                 EVALSUB:  ; Case -:
                         POP H
-                        CALL EVALPARSE
+
+                        PUSH H ; save HL 
+                        PUSH B
+                        CALL NEGATEBC ; check if HL = BC i.e. all we know is -...
+                        DAD B ; this happens with -1+1 where it tries "" - "1"
+                        MOV A,H ; instead of "-1" + "1" bc
+                        ORA L ; it doesn't realize their is not another number for a binary subtract (therefore unary)
+                        POP B
+                        POP H
+                        JNZ EvalSubNext
+
+                        ; this is a unary subtract by virtue of being the first term in the equation 
+                        INX H ; continue to first term
+                        JMP EVALLOOP
+                EvalSubNext: ; this is an actual binary subtract
+                        CALL EVALPARSE ; run like normal
                         CALL SUB16
                         JMP EVALLOOPCONT
 
