@@ -161,9 +161,16 @@ EVALEND:
         CALL AUXPOP ; load in starting address
         CALL XCHGBD
 
+        PUSH B
         CALL XCHGBH ; load final result into DE
+        MOV A,M 
+        CPI '('
+        JNZ EvalEndParse
+        INX H
+EvalEndParse:
         CALL PARSENUM
         CALL XCHGBH
+        POP B
 
         CALL SETINTER ; store and overwrite "()"
         RET
