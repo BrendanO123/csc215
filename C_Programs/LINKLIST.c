@@ -11,12 +11,12 @@ struct node *mknode(n) int n; {
 }
 
 void dellst(list) struct node* list; {
-    struct node* next; struct node* current;
+    struct node* Next; struct node* current;
     current = list;
     while(current != NULL){
-        next = current->next;
+        Next = current->next;
         free(current);
-        current = next; 
+        current = Next; 
     }
     list = NULL;
 }
