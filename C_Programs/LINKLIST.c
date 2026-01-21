@@ -10,13 +10,18 @@ struct node *mknode(n) int n; {
     return x;
 }
 
-void dellst(list) struct node* list; {
+void dellst(list) struct node** list; {
     struct node* Next; struct node* current;
-    current = list;
+    current = *list;
     while(current != NULL){
         Next = current->next;
         free(current);
         current = Next; 
     }
-    list = NULL;
+    *list = NULL;
+}
+
+void endListAtNode(nodeObj) struct node* nodeObj; {
+    if(nodeObj == NULL || nodeObj->next == NULL){return;}
+    dellst(&(nodeObj->next));
 }
